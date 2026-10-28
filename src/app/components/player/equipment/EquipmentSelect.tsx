@@ -21,6 +21,7 @@ interface EquipmentOption {
   version: string;
   slot: string;
   equipment: EquipmentPiece;
+  searchAliases?: string;
 }
 
 const findDart = (name: string): EquipmentPiece | undefined => {
@@ -97,17 +98,56 @@ interface IEquipmentSelectProps {
   customAvailableEquipmentFilter?: (eq: EquipmentPiece) => boolean;
   onSelectedItemChange?: (item: EquipmentOption | null | undefined) => void;
   canonicalize?: boolean;
+  /** If set, only equipment with these IDs is listed (e.g. items in the player's imported bank). */
+  ownedEquipmentIds?: Set<number>;
+  /** Equipment with these IDs is never listed (e.g. items the user filtered out in settings). */
+  excludedEquipmentIds?: Set<number>;
+  placeholder?: string;
+  id?: string;
 }
 
+/**
+ * Moves items with a user-defined tag matching the search to the top: exact tag matches first, then prefix matches.
+ */
+const tagsFirstSort = (items: EquipmentOption[], inputValue: string, tagsById: Map<number, string[]>) => {
+  const query = inputValue.trim().toLowerCase();
+  if (!query || tagsById.size === 0) return items;
+
+  const rank = (o: EquipmentOption) => {
+    const tags = tagsById.get(o.equipment.id);
+    if (!tags) return 2;
+    if (tags.includes(query)) return 0;
+    return tags.some((t) => t.startsWith(query)) ? 1 : 2;
+  };
+  return [...items].sort((a, b) => rank(a) - rank(b));
+};
+
 const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
-  const { customAvailableEquipmentFilter, onSelectedItemChange, canonicalize } = props;
+  const {
+    customAvailableEquipmentFilter, onSelectedItemChange, canonicalize, ownedEquipmentIds, excludedEquipmentIds, placeholder, id,
+  } = props;
   const store = useStore();
+  const { itemTags } = store.custom;
+
+  const tagsById = useMemo(() => {
+    const map = new Map<number, string[]>();
+    for (const { tag, itemId } of itemTags) {
+      map.set(itemId, [...(map.get(itemId) || []), tag]);
+    }
+    return map;
+  }, [itemTags]);
 
   const options: EquipmentOption[] = useMemo(() => {
     const blowpipeEntries: EquipmentOption[] = [];
 
     const entries: EquipmentOption[] = [];
     for (const v of availableEquipment.filter((eq) => {
+      if (ownedEquipmentIds && !ownedEquipmentIds.has(eq.id)) {
+        return false;
+      }
+      if (excludedEquipmentIds?.has(eq.id)) {
+        return false;
+      }
       if (customAvailableEquipmentFilter) {
         return customAvailableEquipmentFilter(eq);
       }
@@ -132,6 +172,7 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
         version: v.version || '',
         slot: v.slot,
         equipment: v,
+        searchAliases: tagsById.get(v.id)?.join(' '),
       };
 
       if (BLOWPIPE_IDS.includes(v.id)) {
@@ -174,16 +215,16 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
       });
 
     return gauntletSort(entries, store.monster.id);
-  }, [store.monster.id, customAvailableEquipmentFilter]);
+  }, [store.monster.id, customAvailableEquipmentFilter, ownedEquipmentIds, excludedEquipmentIds, tagsById]);
 
   return (
     <Combobox<EquipmentOption>
-      id="equipment-select"
+      id={id ?? 'equipment-select'}
       className="w-full"
       items={options}
       keepOpenAfterSelect
       keepPositionAfterSelect
-      placeholder="Search for equipment..."
+      placeholder={placeholder ?? 'Search for equipment...'}
       onSelectedItemChange={(item) => {
         if (onSelectedItemChange) {
           onSelectedItemChange(item);
@@ -251,7 +292,7 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
           return true;
         });
       }}
-      customSort={(v) => gauntletSort(v, store.monster.id)}
+      customSort={(v, inputValue) => tagsFirstSort(gauntletSort(v, store.monster.id), inputValue, tagsById)}
     />
   );
 });

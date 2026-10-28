@@ -13,6 +13,7 @@ interface IModalProps {
   footerChildren?: ReactNode;
   maxWidth?: string;
   onOpen?: () => void;
+  initialFocus?: React.MutableRefObject<HTMLElement | null>;
 }
 
 const Modal: React.FC<PropsWithChildren<IModalProps>> = (props) => {
@@ -25,6 +26,7 @@ const Modal: React.FC<PropsWithChildren<IModalProps>> = (props) => {
     footerChildren,
     maxWidth,
     onOpen,
+    initialFocus,
   } = props;
 
   useEffect(() => {
@@ -42,7 +44,7 @@ const Modal: React.FC<PropsWithChildren<IModalProps>> = (props) => {
       leaveTo="opacity-0"
       as={Fragment}
     >
-      <Dialog onClose={() => setIsOpen(false)}>
+      <Dialog onClose={() => setIsOpen(false)} initialFocus={initialFocus}>
         <div className="fixed inset-0 bg-black/60" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className={`w-full ${maxWidth ?? 'max-w-lg'} rounded-xl bg-white dark:bg-dark-300 dark:text-white text-black shadow-xl`}>

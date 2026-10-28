@@ -1,5 +1,6 @@
 import { IconPencil } from '@tabler/icons-react';
 import React, { useCallback, useState } from 'react';
+import SaveSetupButton from '@/app/components/player/SaveSetupButton';
 
 interface LoadoutNameProps {
   name: string;
@@ -65,6 +66,7 @@ const LoadoutName: React.FC<LoadoutNameProps> = ({ name, index, renameLoadout })
       >
         <IconPencil aria-label="Rename loadout" size={18} />
       </button>
+      <SaveSetupButton />
     </div>
   );
 };

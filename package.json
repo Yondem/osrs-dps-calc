@@ -16,7 +16,10 @@
     "analyse": "ANALYSE=true next build",
     "test": "jest",
     "cdn-docker": "yarn build-docker-scraper && docker run --rm -it -v $(pwd)/cdn:/srv/cdn -v $(pwd)/src/lib/EquipmentAliases.ts:/srv/src/lib/EquipmentAliases.ts weirdgloop/osrs-dps-calc:scraper",
-    "cdn-dispatch": "gh workflow run regenerate.yml"
+    "cdn-dispatch": "gh workflow run regenerate.yml",
+    "desktop:install": "npm --prefix desktop install",
+    "desktop:start": "npm --prefix desktop start",
+    "desktop": "next build && node desktop/build.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",

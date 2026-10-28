@@ -1,5 +1,9 @@
 import { PartialDeep } from 'type-fest';
-import { Player } from '@/types/Player';
+import { EquipmentPiece, Player, PlayerEquipment } from '@/types/Player';
+import { PlayerCombatStyle } from '@/types/PlayerCombatStyle';
+import { Prayer } from '@/enums/Prayer';
+import Potion from '@/enums/Potion';
+import type { AutoBuffsConfig } from '@/lib/AutoBuffs';
 import { Monster } from '@/types/Monster';
 import UserIssueType from '@/enums/UserIssueType';
 import { DetailEntry } from '@/lib/CalcDetails';
@@ -17,6 +21,7 @@ export interface UserIssue {
 export interface UI {
   showPreferencesModal: boolean;
   showShareModal: boolean;
+  showSettingsModal: boolean;
   username: string;
   isDefensiveReductionsExpanded: boolean;
 }
@@ -35,6 +40,45 @@ export interface Preferences {
   hitDistsHideZeros: boolean; // legacy name
   hitDistShowSpec: boolean;
   resultsExpanded: boolean;
+  bankOwnedOnly: boolean; // only show equipment from the imported bank in the equipment search
+  autoBuffs: boolean; // turn on potions and prayers when a weapon is equipped
+  autoBuffsConfig: AutoBuffsConfig; // which potions and prayers auto buffs turns on
+}
+
+/**
+ * An equipment slot in a saved setup. Only the ID is stored so setups pick up item data changes.
+ */
+export interface SavedSetupItem {
+  id: number;
+  itemVars?: EquipmentPiece['itemVars'];
+}
+
+/**
+ * A loadout the user saved to reuse later from the Presets dropdown.
+ */
+export interface SavedSetup {
+  id: string;
+  name: string;
+  equipment: { [slot in keyof PlayerEquipment]: SavedSetupItem | null };
+  style?: PlayerCombatStyle;
+  spellName?: string | null;
+  prayers?: Prayer[]; // missing on setups saved before prayers were remembered
+  potions?: Potion[];
+}
+
+export interface ItemTag {
+  tag: string;
+  itemId: number;
+}
+
+/**
+ * User customisations from the settings menu, stored separately from preferences.
+ */
+export interface CustomSettings {
+  hiddenItemIds: number[]; // hidden from the equipment search
+  itemTags: ItemTag[]; // search shortcuts, e.g. "tbow" -> Twisted bow
+  savedSetups: SavedSetup[];
+  hiddenPresets: string[]; // EquipmentPreset keys of built-in presets hidden from the Presets dropdown
 }
 
 /**

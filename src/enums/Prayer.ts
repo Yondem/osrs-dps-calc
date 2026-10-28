@@ -72,6 +72,35 @@ export const OVERHEAD_PRAYERS: Prayer[] = [
   // Prayer.RETRIBUTION, Prayer.REDEMPTION, Prayer.SMITE,
 ];
 
+/**
+ * Turns on a prayer, turning off any prayers it can't be active alongside.
+ */
+export const addPrayer = (prayers: Prayer[], prayer: Prayer): Prayer[] => {
+  if (prayers.includes(prayer)) return prayers;
+
+  let newPrayers = [...prayers];
+
+  // If this is a defensive prayer, disable all other defensive prayers
+  if (DEFENSIVE_PRAYERS.includes(prayer)) newPrayers = newPrayers.filter((p) => !DEFENSIVE_PRAYERS.includes(p));
+
+  // If this is an overhead prayer, disable all other overhead prayers
+  if (OVERHEAD_PRAYERS.includes(prayer)) newPrayers = newPrayers.filter((p) => !OVERHEAD_PRAYERS.includes(p));
+
+  // If this is an offensive prayer...
+  if (OFFENSIVE_PRAYERS.includes(prayer)) {
+    newPrayers = newPrayers.filter((p) => {
+      // If this is a "brain" prayer, it can only be paired with arm prayers
+      if (BRAIN_PRAYERS.includes(prayer)) return !OFFENSIVE_PRAYERS.includes(p) || ARM_PRAYERS.includes(p);
+      // If this is an "arm" prayer, it can only be paired with brain prayers
+      if (ARM_PRAYERS.includes(prayer)) return !OFFENSIVE_PRAYERS.includes(p) || BRAIN_PRAYERS.includes(p);
+      // Otherwise, there are no offensive prayers it can be paired with, disable them all
+      return !OFFENSIVE_PRAYERS.includes(p);
+    });
+  }
+
+  return [...newPrayers, prayer];
+};
+
 export type PrayerCombatStyle = 'magic' | 'ranged' | 'melee';
 export interface PrayerData {
   renderOrder: number,

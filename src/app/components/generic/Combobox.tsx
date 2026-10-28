@@ -5,7 +5,8 @@ import React, {
 } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
-type ComboboxItem = { label: string, version?: string, value: string | number };
+// searchAliases is extra text the item can be found by, e.g. user-defined tags
+type ComboboxItem = { label: string, version?: string, value: string | number, searchAliases?: string };
 
 const itemToString = <T extends ComboboxItem>(i: T | null) => (i ? i.label : '');
 
@@ -22,7 +23,7 @@ interface IComboboxProps<T> {
   className?: string;
   CustomItemComponent?: React.FC<{ item: T, itemString: string }>;
   customFilter?: (v: T[], inputValue: string) => T[];
-  customSort?: (v: T[]) => T[];
+  customSort?: (v: T[], inputValue: string) => T[];
 }
 
 /**
@@ -62,7 +63,7 @@ const Combobox = <T extends ComboboxItem>(props: IComboboxProps<T>) => {
     if (value) setInputValue(value);
   }, [value]);
 
-  const preprocessedItems = useMemo(() => items.map((item) => ({ item, valueToFilter: `${item.label} ${item.version ? item.version : ''}` })), [items]);
+  const preprocessedItems = useMemo(() => items.map((item) => ({ item, valueToFilter: `${item.label} ${item.version ? item.version : ''} ${item.searchAliases || ''}` })), [items]);
 
   const filteredItems = useMemo(() => {
     let newFilteredItems = items;
@@ -77,7 +78,7 @@ const Combobox = <T extends ComboboxItem>(props: IComboboxProps<T>) => {
     }
 
     if (customSort) {
-      newFilteredItems = customSort(newFilteredItems);
+      newFilteredItems = customSort(newFilteredItems, inputValue);
     }
 
     return newFilteredItems;

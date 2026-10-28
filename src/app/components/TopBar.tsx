@@ -1,6 +1,6 @@
 import { useStore } from '@/state';
 import {
-  IconBrandDiscord,
+  IconSettings,
   IconShare2,
 } from '@tabler/icons-react';
 import wiki from '@/public/img/Wiki@2x.webp';
@@ -22,17 +22,10 @@ const TopBar: React.FC = observer(() => {
             >
               Beta
             </span>
+            <span className="text-sm text-body-200 font-serif italic">- Vind edition</span>
           </div>
           <div className="block ml-6">
             <div className="flex text-body-200 text-xs font-medium space-x-2">
-              <a
-                href="https://discord.gg/JXeUnR9stP"
-                target="_blank"
-                className="transition-all hover:scale-105 no-underline text-white border border-transparent bg-[#5865F2] py-1.5 px-2.5 rounded-md flex items-center gap-1"
-              >
-                <IconBrandDiscord size={20} aria-label="Discord" />
-                <div className="hidden md:block">Feedback? Join Discord!</div>
-              </a>
               <button
                 type="button"
                 className="transition-all hover:scale-105 hover:text-white border border-body-500 bg-[#3e2816] py-1.5 px-2.5 rounded-md dark:bg-dark-300 dark:border-dark-200 flex items-center gap-1"
@@ -42,6 +35,17 @@ const TopBar: React.FC = observer(() => {
               >
                 <IconShare2 size={20} aria-label="Share loadout" />
                 <div className="hidden md:block">Share loadout</div>
+              </button>
+              <button
+                type="button"
+                className="transition-all hover:scale-105 hover:text-white border border-body-500 bg-[#3e2816] py-1.5 px-2 rounded-md dark:bg-dark-300 dark:border-dark-200 flex items-center"
+                onClick={() => {
+                  store.updateUIState({ showSettingsModal: true });
+                }}
+                data-tooltip-id="tooltip"
+                data-tooltip-content="Settings"
+              >
+                <IconSettings size={20} aria-label="Settings" />
               </button>
             </div>
           </div>

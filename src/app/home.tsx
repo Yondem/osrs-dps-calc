@@ -14,6 +14,7 @@ import InitialLoad from '@/app/components/InitialLoad';
 import LoadoutComparison from '@/app/components/results/LoadoutComparison';
 import TtkComparison from '@/app/components/results/TtkComparison';
 import ShareModal from '@/app/components/ShareModal';
+import SettingsModal from '@/app/components/settings/SettingsModal';
 import DebugPanels from '@/app/components/results/DebugPanels';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import NPCVersusPlayerResultsContainer from '@/app/components/results/NPCVersusPlayerResultsContainer';
@@ -61,6 +62,8 @@ const Home: NextPage = observer(() => {
   useEffect(() => {
     // Load preferences from browser storage if there are any
     store.loadPreferences();
+    store.loadBank();
+    store.loadCustomSettings();
 
     // Setup global event handling
     document.addEventListener('keydown', globalKeyDownHandler);
@@ -139,6 +142,7 @@ const Home: NextPage = observer(() => {
         className="text-sm"
       />
       <ShareModal />
+      <SettingsModal />
     </div>
   );
 });

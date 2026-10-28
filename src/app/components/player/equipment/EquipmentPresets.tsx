@@ -1,5 +1,7 @@
 import Select from '@/app/components/generic/Select';
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import { observer } from 'mobx-react-lite';
+import { IconStarFilled } from '@tabler/icons-react';
 import EquipmentPreset from '@/enums/EquipmentPreset';
 import { useStore } from '@/state';
 import { PartialDeep } from 'type-fest';
@@ -8,27 +10,48 @@ import { availableEquipment } from '@/lib/Equipment';
 import { EquipmentCategory } from '@/enums/EquipmentCategory';
 import { getCombatStylesForCategory } from '@/utils';
 
-const EquipmentPresets: React.FC = () => {
+interface BuiltInPreset {
+  label: string;
+  value: EquipmentPreset;
+}
+
+interface PresetOption {
+  label: string;
+  builtIn?: BuiltInPreset;
+  savedSetupId?: string;
+}
+
+export const builtInPresetKey = (preset: EquipmentPreset): string => EquipmentPreset[preset];
+
+export const BUILT_IN_PRESETS: BuiltInPreset[] = [
+  { label: 'Bowfa + Crystal', value: EquipmentPreset.BOWFA },
+  { label: 'Blood Moon set', value: EquipmentPreset.BLOOD_MOON },
+  { label: 'Dharok\'s equipment', value: EquipmentPreset.DHAROKS },
+  { label: 'Max Mage', value: EquipmentPreset.MAX_MAGE },
+  { label: 'Max Melee', value: EquipmentPreset.MAX_MELEE },
+  { label: 'Max Ranged', value: EquipmentPreset.MAX_RANGED },
+  { label: 'Mid Level Mage', value: EquipmentPreset.MID_LEVEL_MAGE },
+  { label: 'Mid Level Melee', value: EquipmentPreset.MID_LEVEL_MELEE },
+  { label: 'Mid Level Ranged', value: EquipmentPreset.MID_LEVEL_RANGED },
+  { label: 'Verac\'s equipment', value: EquipmentPreset.VERACS },
+  { label: 'Void Mage', value: EquipmentPreset.VOID_MAGE },
+  { label: 'Void Melee', value: EquipmentPreset.VOID_MELEE },
+  { label: 'Void Ranged', value: EquipmentPreset.VOID_RANGED },
+  { label: 'Tank', value: EquipmentPreset.TANK },
+];
+
+const EquipmentPresets: React.FC = observer(() => {
   const store = useStore();
+  const { savedSetups, hiddenPresets } = store.custom;
 
-  const presets = [
-    { label: 'Bowfa + Crystal', value: EquipmentPreset.BOWFA },
-    { label: 'Blood Moon set', value: EquipmentPreset.BLOOD_MOON },
-    { label: 'Dharok\'s equipment', value: EquipmentPreset.DHAROKS },
-    { label: 'Max Mage', value: EquipmentPreset.MAX_MAGE },
-    { label: 'Max Melee', value: EquipmentPreset.MAX_MELEE },
-    { label: 'Max Ranged', value: EquipmentPreset.MAX_RANGED },
-    { label: 'Mid Level Mage', value: EquipmentPreset.MID_LEVEL_MAGE },
-    { label: 'Mid Level Melee', value: EquipmentPreset.MID_LEVEL_MELEE },
-    { label: 'Mid Level Ranged', value: EquipmentPreset.MID_LEVEL_RANGED },
-    { label: 'Verac\'s equipment', value: EquipmentPreset.VERACS },
-    { label: 'Void Mage', value: EquipmentPreset.VOID_MAGE },
-    { label: 'Void Melee', value: EquipmentPreset.VOID_MELEE },
-    { label: 'Void Ranged', value: EquipmentPreset.VOID_RANGED },
-    { label: 'Tank', value: EquipmentPreset.TANK },
-  ];
+  const presets: PresetOption[] = useMemo(() => [
+    ...savedSetups.map((s) => ({ label: s.name, savedSetupId: s.id })),
+    ...BUILT_IN_PRESETS
+      .filter((p) => !hiddenPresets.includes(builtInPresetKey(p.value)))
+      .map((p) => ({ label: p.label, builtIn: p })),
+  ], [savedSetups, hiddenPresets]);
 
-  const onSelect = useCallback((v: { label: string, value: EquipmentPreset } | null | undefined) => {
+  const onSelectBuiltIn = useCallback((v: BuiltInPreset | null | undefined) => {
     let newPlayer: PartialDeep<Player> = {};
 
     const findItemById = (id: number) => availableEquipment.find((eq) => eq.id === id);
@@ -300,15 +323,29 @@ const EquipmentPresets: React.FC = () => {
     }
   }, [store]);
 
+  const onSelect = useCallback((v: PresetOption | null | undefined) => {
+    if (v?.savedSetupId) {
+      store.applySavedSetup(v.savedSetupId);
+    } else {
+      onSelectBuiltIn(v?.builtIn);
+    }
+  }, [store, onSelectBuiltIn]);
+
   return (
-    <Select<{ label: string, value: EquipmentPreset }>
+    <Select<PresetOption>
       id="presets"
-      items={presets}
+      items={presets.length ? presets : [{ label: 'No presets - save one with +' }]}
       placeholder="Presets"
       resetAfterSelect
       onSelectedItemChange={onSelect}
+      CustomItemComponent={({ item }) => (
+        <div className="flex items-center gap-1">
+          {item.savedSetupId && <IconStarFilled size={12} className="text-orange-400 shrink-0" />}
+          <span className={item.builtIn || item.savedSetupId ? '' : 'text-gray-400 italic'}>{item.label}</span>
+        </div>
+      )}
     />
   );
-};
+});
 
 export default EquipmentPresets;

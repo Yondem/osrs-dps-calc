@@ -11,10 +11,12 @@ import { toast } from 'react-toastify';
 import {
   CalculatedLoadout,
   Calculator,
+  CustomSettings,
   IMPORT_VERSION,
   ImportableData,
   PlayerVsNPCCalculatedLoadout,
   Preferences,
+  SavedSetup,
   State,
   UI,
   UserIssue,
@@ -30,6 +32,11 @@ import {
 import { ComputeBasicRequest, ComputeReverseRequest, WorkerRequestType } from '@/worker/CalcWorkerTypes';
 import { getMonsters, INITIAL_MONSTER_INPUTS } from '@/lib/Monsters';
 import { availableEquipment, calculateEquipmentBonusesFromGear } from '@/lib/Equipment';
+import { BankData, getOwnedEquipmentIds, withAliasVariants } from '@/lib/Bank';
+import { resolveSavedSetupEquipment, savedSetupFromPlayer } from '@/lib/SavedSetups';
+import {
+  AutoBuffsConfig, autoBuffStyleFor, DEFAULT_AUTO_BUFFS_CONFIG, getRaid, withAutoBuffPotions, withAutoBuffPrayers,
+} from '@/lib/AutoBuffs';
 import { CalcWorker } from '@/worker/CalcWorker';
 import { spellByName } from '@/types/Spell';
 import {
@@ -38,14 +45,7 @@ import {
   NUMBER_OF_LOADOUTS,
 } from '@/lib/constants';
 import { EquipmentCategory } from './enums/EquipmentCategory';
-import {
-  ARM_PRAYERS,
-  BRAIN_PRAYERS,
-  DEFENSIVE_PRAYERS,
-  OFFENSIVE_PRAYERS,
-  OVERHEAD_PRAYERS,
-  Prayer,
-} from './enums/Prayer';
+import { addPrayer, Prayer } from './enums/Prayer';
 import Potion from './enums/Potion';
 
 const EMPTY_CALC_LOADOUT = {} as CalculatedLoadout;
@@ -222,6 +222,7 @@ class GlobalState implements State {
   ui: UI = {
     showPreferencesModal: false,
     showShareModal: false,
+    showSettingsModal: false,
     username: '',
     isDefensiveReductionsExpanded: false,
   };
@@ -236,6 +237,25 @@ class GlobalState implements State {
     hitDistsHideZeros: false,
     hitDistShowSpec: false,
     resultsExpanded: false,
+    bankOwnedOnly: false,
+    autoBuffs: false,
+    autoBuffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
+  };
+
+  /**
+   * The player's bank, imported from the RuneLite Bank Memory plugin. Stored separately from preferences.
+   */
+  bank: BankData | null = null;
+
+  /**
+   * Customisations from the settings menu (filtered items, tags, saved setups, hidden presets).
+   * Arrays are always replaced rather than mutated, so components can use them as memo dependencies.
+   */
+  custom: CustomSettings = {
+    hiddenItemIds: [],
+    itemTags: [],
+    savedSetups: [],
+    hiddenPresets: [],
   };
 
   calc: Calculator = {
@@ -269,25 +289,7 @@ class GlobalState implements State {
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
 
-    const recomputeBoosts = () => {
-      // Re-compute the player's boost values.
-      const boosts: Partial<PlayerSkills> = {
-        atk: 0, def: 0, magic: 0, prayer: 0, ranged: 0, str: 0, mining: 0, herblore: 0, farming: 0,
-      };
-
-      for (const p of this.player.buffs.potions) {
-        const result = PotionMap[p].calculateFn(this.player.skills);
-        for (const k of Object.keys(result)) {
-          const r = result[k as keyof typeof result] as number;
-          if (r > boosts[k as keyof typeof boosts]!) {
-            // If this skill's boost is higher than what it already is, then change it
-            boosts[k as keyof typeof boosts] = result[k as keyof typeof result] as number;
-          }
-        }
-      }
-
-      this.updatePlayer({ boosts });
-    };
+    const recomputeBoosts = () => this.recomputeBoosts();
 
     const potionTriggers: ((r: IReactionPublic) => unknown)[] = [
       () => toJS(this.player.skills),
@@ -304,6 +306,30 @@ class GlobalState implements State {
         this.recalculateEquipmentBonusesFromGearAll();
       }
     }));
+  }
+
+  /**
+   * Re-compute a loadout's boost values from its potions. Defaults to the selected loadout.
+   */
+  recomputeBoosts(loadoutIx?: number) {
+    loadoutIx = loadoutIx !== undefined ? loadoutIx : this.selectedLoadout;
+    const loadout = this.loadouts[loadoutIx];
+    const boosts: Partial<PlayerSkills> = {
+      atk: 0, def: 0, magic: 0, prayer: 0, ranged: 0, str: 0, mining: 0, herblore: 0, farming: 0,
+    };
+
+    for (const p of loadout.buffs.potions) {
+      const result = PotionMap[p].calculateFn(loadout.skills);
+      for (const k of Object.keys(result)) {
+        const r = result[k as keyof typeof result] as number;
+        if (r > boosts[k as keyof typeof boosts]!) {
+          // If this skill's boost is higher than what it already is, then change it
+          boosts[k as keyof typeof boosts] = result[k as keyof typeof result] as number;
+        }
+      }
+    }
+
+    this.updatePlayer({ boosts }, loadoutIx);
   }
 
   set debug(debug: boolean) {
@@ -548,11 +574,163 @@ class GlobalState implements State {
 
   loadPreferences() {
     localforage.getItem('dps-calc-prefs').then((v) => {
-      this.updatePreferences(v as PartialDeep<Preferences>);
+      if (!v) return;
+      // Older versions stored a single melee prayer choice instead of the full auto buffs config
+      const { autoBuffsMeleePrayer, ...prefs } = v as Partial<Preferences> & { autoBuffsMeleePrayer?: Prayer };
+      const config = { ...DEFAULT_AUTO_BUFFS_CONFIG, ...prefs.autoBuffsConfig };
+      if (autoBuffsMeleePrayer !== undefined && !prefs.autoBuffsConfig) {
+        config.melee = { ...config.melee, prayers: [autoBuffsMeleePrayer] };
+      }
+      this.updatePreferences({ ...prefs, autoBuffsConfig: config });
     }).catch((e) => {
       console.error(e);
       // TODO maybe some handling here
     });
+  }
+
+  loadBank() {
+    localforage.getItem('dps-calc-bank').then((v) => {
+      if (v) this.bank = v as BankData;
+    }).catch((e) => {
+      console.error(e);
+    });
+  }
+
+  setBank(bank: BankData | null) {
+    this.bank = bank;
+    if (!bank) this.updatePreferences({ bankOwnedOnly: false });
+
+    const save = bank ? localforage.setItem('dps-calc-bank', toJS(bank)) : localforage.removeItem('dps-calc-bank');
+    save.catch((e) => {
+      console.error(e);
+      toast.error('Could not save your bank to storage.', { toastId: 'bank-save' });
+    });
+  }
+
+  /**
+   * Equipment IDs in the imported bank (including functionally identical variants), or null if no bank is imported.
+   */
+  get ownedEquipmentIds(): Set<number> | null {
+    return this.bank ? getOwnedEquipmentIds(this.bank.items) : null;
+  }
+
+  loadCustomSettings() {
+    localforage.getItem('dps-calc-custom').then((v) => {
+      if (v) this.custom = { ...this.custom, ...(v as Partial<CustomSettings>) };
+    }).catch((e) => {
+      console.error(e);
+    });
+  }
+
+  updateCustomSettings(changes: Partial<CustomSettings>) {
+    this.custom = { ...this.custom, ...changes };
+    localforage.setItem('dps-calc-custom', toJS(this.custom)).catch((e) => {
+      console.error(e);
+      toast.error('Could not save your settings to storage.', { toastId: 'custom-save' });
+    });
+  }
+
+  /**
+   * Equipment IDs hidden from the equipment search, including functionally identical variants.
+   */
+  get hiddenEquipmentIds(): Set<number> {
+    return withAliasVariants(this.custom.hiddenItemIds);
+  }
+
+  hideItem(id: number) {
+    if (this.custom.hiddenItemIds.includes(id)) return;
+    this.updateCustomSettings({ hiddenItemIds: [...this.custom.hiddenItemIds, id] });
+  }
+
+  unhideItem(id: number) {
+    this.updateCustomSettings({ hiddenItemIds: this.custom.hiddenItemIds.filter((i) => i !== id) });
+  }
+
+  addItemTag(tag: string, itemId: number) {
+    const normalised = tag.trim().toLowerCase();
+    if (!normalised || this.custom.itemTags.some((t) => t.tag === normalised && t.itemId === itemId)) return;
+    this.updateCustomSettings({ itemTags: [...this.custom.itemTags, { tag: normalised, itemId }] });
+  }
+
+  removeItemTag(tag: string, itemId: number) {
+    this.updateCustomSettings({ itemTags: this.custom.itemTags.filter((t) => !(t.tag === tag && t.itemId === itemId)) });
+  }
+
+  setPresetsHidden(presetKeys: string[], hidden: boolean) {
+    const rest = this.custom.hiddenPresets.filter((p) => !presetKeys.includes(p));
+    this.updateCustomSettings({ hiddenPresets: hidden ? [...rest, ...presetKeys] : rest });
+  }
+
+  /**
+   * Saves the selected loadout's gear, combat style and spell as a setup. Overwrites the setup with `overwriteId` if given.
+   */
+  saveCurrentLoadoutAsSetup(name: string, overwriteId?: string): SavedSetup {
+    const setup = savedSetupFromPlayer(this.player, name, overwriteId);
+    const exists = this.custom.savedSetups.some((s) => s.id === setup.id);
+    this.updateCustomSettings({
+      savedSetups: exists
+        ? this.custom.savedSetups.map((s) => (s.id === setup.id ? setup : s))
+        : [...this.custom.savedSetups, setup],
+    });
+    return setup;
+  }
+
+  updateSavedSetup(id: string, changes: Partial<SavedSetup>) {
+    this.updateCustomSettings({
+      savedSetups: this.custom.savedSetups.map((s) => (s.id === id ? { ...s, ...changes, id } : s)),
+    });
+  }
+
+  deleteSavedSetup(id: string) {
+    this.updateCustomSettings({ savedSetups: this.custom.savedSetups.filter((s) => s.id !== id) });
+  }
+
+  applySavedSetup(id: string) {
+    const setup = this.custom.savedSetups.find((s) => s.id === id);
+    if (!setup) return;
+
+    // Clear the weapon and shield first, so the two-handed weapon handling in updatePlayer
+    // doesn't drop the setup's weapon when switching away from a two-hander.
+    this.updatePlayer({ equipment: { weapon: null, shield: null } });
+    this.updatePlayer({
+      name: setup.name,
+      equipment: resolveSavedSetupEquipment(setup),
+      ...(setup.style ? { style: setup.style } : {}),
+      spell: setup.spellName ? spellByName(setup.spellName) : null,
+    });
+
+    // Assigned directly rather than through updatePlayer, which merges arrays index by index.
+    // This also replaces anything auto-buffs turned on when the weapon was equipped above.
+    if (setup.prayers) this.player.prayers = [...setup.prayers];
+    if (setup.potions) {
+      const raid = getRaid(this.monster);
+      // Inside a raid, auto-buffs swaps the setup's combat potions for the raid's own potion.
+      this.player.buffs.potions = this.prefs.autoBuffs && raid
+        ? withAutoBuffPotions(setup.potions, this.prefs.autoBuffsConfig, null, raid)
+        : [...setup.potions];
+    }
+  }
+
+  /**
+   * Turns on the potions (and optionally the prayers) for the "automatically enable buffs" setting,
+   * based on the loadout's weapon and whether the monster is in a raid.
+   */
+  applyAutoBuffs(loadoutIx: number, includePrayers: boolean) {
+    const loadout = this.loadouts[loadoutIx];
+    const config = this.prefs.autoBuffsConfig;
+    const { weapon } = loadout.equipment;
+    const style = weapon ? autoBuffStyleFor(weapon, loadout.style) : null;
+
+    loadout.buffs.potions = withAutoBuffPotions(loadout.buffs.potions, config, style, getRaid(this.monster));
+    if (includePrayers && style) {
+      loadout.prayers = withAutoBuffPrayers(loadout.prayers, config, style);
+    }
+
+    this.recomputeBoosts(loadoutIx);
+  }
+
+  updateAutoBuffsConfig(changes: Partial<AutoBuffsConfig>) {
+    this.updatePreferences({ autoBuffsConfig: { ...this.prefs.autoBuffsConfig, ...changes } });
   }
 
   async fetchCurrentPlayerSkills() {
@@ -618,28 +796,8 @@ class GlobalState implements State {
       // If we're toggling off an existing prayer, just filter it out from the array
       this.player.prayers = this.player.prayers.filter((p) => p !== prayer);
     } else {
-      // If we're toggling on a new prayer, let's do some checks to ensure that some prayers cannot be enabled alongside it
-      let newPrayers = [...this.player.prayers];
-
-      // If this is a defensive prayer, disable all other defensive prayers
-      if (DEFENSIVE_PRAYERS.includes(prayer)) newPrayers = newPrayers.filter((p) => !DEFENSIVE_PRAYERS.includes(p));
-
-      // If this is an overhead prayer, disable all other overhead prayers
-      if (OVERHEAD_PRAYERS.includes(prayer)) newPrayers = newPrayers.filter((p) => !OVERHEAD_PRAYERS.includes(p));
-
-      // If this is an offensive prayer...
-      if (OFFENSIVE_PRAYERS.includes(prayer)) {
-        newPrayers = newPrayers.filter((p) => {
-          // If this is a "brain" prayer, it can only be paired with arm prayers
-          if (BRAIN_PRAYERS.includes(prayer)) return !OFFENSIVE_PRAYERS.includes(p) || ARM_PRAYERS.includes(p);
-          // If this is an "arm" prayer, it can only be paired with brain prayers
-          if (ARM_PRAYERS.includes(prayer)) return !OFFENSIVE_PRAYERS.includes(p) || BRAIN_PRAYERS.includes(p);
-          // Otherwise, there are no offensive prayers it can be paired with, disable them all
-          return !OFFENSIVE_PRAYERS.includes(p);
-        });
-      }
-
-      this.player.prayers = [...newPrayers, prayer];
+      // If we're toggling on a new prayer, turn off any prayers that can't be enabled alongside it
+      this.player.prayers = addPrayer(this.player.prayers, prayer);
     }
   }
 
@@ -668,6 +826,8 @@ class GlobalState implements State {
     const newShield = player.equipment?.shield;
 
     const currentWeapon = this.loadouts[loadoutIx].equipment.weapon;
+    // Captured now because merge() below mutates the existing weapon object in place.
+    const previousWeaponId = currentWeapon?.id;
 
     // Special handling for if a shield is equipped, and we're using a two-handed weapon
     if (player.equipment?.shield && newShield !== undefined && currentWeapon?.isTwoHanded) {
@@ -695,6 +855,11 @@ class GlobalState implements State {
     if (!this.prefs.manualMode) {
       this.updateEquipmentBonuses(loadoutIx);
     }
+
+    const equippedWeapon = player.equipment?.weapon;
+    if (this.prefs.autoBuffs && equippedWeapon && equippedWeapon.id !== previousWeaponId) {
+      this.applyAutoBuffs(loadoutIx, true);
+    }
   }
 
   /**
@@ -702,6 +867,8 @@ class GlobalState implements State {
    * @param monster
    */
   updateMonster(monster: PartialDeep<Monster>) {
+    const raidBefore = getRaid(this.monster);
+
     // If monster attributes were passed to this function, clear the existing ones
     if (monster.attributes !== undefined) this.monster.attributes = [];
 
@@ -724,6 +891,13 @@ class GlobalState implements State {
       }
       return undefined;
     });
+
+    // Moving into or out of a raid swaps potions (e.g. super combat <-> overload) on loadouts with a weapon.
+    if (this.prefs.autoBuffs && getRaid(this.monster) !== raidBefore) {
+      this.loadouts.forEach((loadout, ix) => {
+        if (loadout.equipment.weapon) this.applyAutoBuffs(ix, false);
+      });
+    }
   }
 
   /**

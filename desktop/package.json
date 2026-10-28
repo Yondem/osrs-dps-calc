@@ -1,0 +1,16 @@
+{
+  "name": "osrs-dps-desktop",
+  "productName": "DPS Calc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop wrapper for the OSRS DPS calculator",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "package": "node build.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "^18.3.6",
+    "electron": "^33.4.11"
+  }
+}
