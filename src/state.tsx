@@ -22,12 +22,12 @@ import {
   UserIssue,
 } from '@/types/State';
 import {
-  EquipmentPiece, Player, PlayerEquipment, PlayerSkills,
+  EquipmentPiece, Player, PlayerEquipment,
 } from '@/types/Player';
 import { Monster } from '@/types/Monster';
 import { MonsterAttribute } from '@/enums/MonsterAttribute';
 import {
-  fetchPlayerSkills, fetchShortlinkData, getCombatStylesForCategory, getDefaultCombatStyle, isDefined, PotionMap,
+  calculatePotionBoosts, fetchPlayerSkills, fetchShortlinkData, getCombatStylesForCategory, getDefaultCombatStyle, isDefined,
 } from '@/utils';
 import { ComputeBasicRequest, ComputeReverseRequest, WorkerRequestType } from '@/worker/CalcWorkerTypes';
 import { getMonsters, INITIAL_MONSTER_INPUTS } from '@/lib/Monsters';
@@ -314,22 +314,7 @@ class GlobalState implements State {
   recomputeBoosts(loadoutIx?: number) {
     loadoutIx = loadoutIx !== undefined ? loadoutIx : this.selectedLoadout;
     const loadout = this.loadouts[loadoutIx];
-    const boosts: Partial<PlayerSkills> = {
-      atk: 0, def: 0, magic: 0, prayer: 0, ranged: 0, str: 0, mining: 0, herblore: 0, farming: 0,
-    };
-
-    for (const p of loadout.buffs.potions) {
-      const result = PotionMap[p].calculateFn(loadout.skills);
-      for (const k of Object.keys(result)) {
-        const r = result[k as keyof typeof result] as number;
-        if (r > boosts[k as keyof typeof boosts]!) {
-          // If this skill's boost is higher than what it already is, then change it
-          boosts[k as keyof typeof boosts] = result[k as keyof typeof result] as number;
-        }
-      }
-    }
-
-    this.updatePlayer({ boosts }, loadoutIx);
+    this.updatePlayer({ boosts: calculatePotionBoosts(loadout.buffs.potions, loadout.skills) }, loadoutIx);
   }
 
   set debug(debug: boolean) {
@@ -687,13 +672,19 @@ class GlobalState implements State {
 
   applySavedSetup(id: string) {
     const setup = this.custom.savedSetups.find((s) => s.id === id);
-    if (!setup) return;
+    if (setup) this.applySetup(setup, true);
+  }
 
+  /**
+   * Loads a setup's gear, combat style, spell, prayers and potions into the selected loadout.
+   * Used for saved setups and for results from the best setup finder.
+   */
+  applySetup(setup: SavedSetup, rename: boolean) {
     // Clear the weapon and shield first, so the two-handed weapon handling in updatePlayer
     // doesn't drop the setup's weapon when switching away from a two-hander.
     this.updatePlayer({ equipment: { weapon: null, shield: null } });
     this.updatePlayer({
-      name: setup.name,
+      ...(rename ? { name: setup.name } : {}),
       equipment: resolveSavedSetupEquipment(setup),
       ...(setup.style ? { style: setup.style } : {}),
       spell: setup.spellName ? spellByName(setup.spellName) : null,

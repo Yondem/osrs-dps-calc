@@ -6,6 +6,7 @@ import PlayerInnerContainer from '@/app/components/player/PlayerInnerContainer';
 import LoadoutName from '@/app/components/player/LoadoutName';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import WikiSyncButton from 'src/app/components/player/WikiSyncButton';
+import FindBestSetupButton from '@/app/components/player/FindBestSetupButton';
 
 const PlayerContainer: React.FC = observer(() => {
   const store = useStore();
@@ -61,6 +62,7 @@ const PlayerContainer: React.FC = observer(() => {
             </div>
           </div>
           <div className="flex gap-1">
+            <FindBestSetupButton />
             <WikiSyncButton />
             <button
               type="button"

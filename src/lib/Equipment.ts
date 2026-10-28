@@ -5,7 +5,7 @@ import {
   PlayerOffensive,
 } from '@/types/Player';
 import { Monster } from '@/types/Monster';
-import { keys } from '@/utils';
+import { isDefined, keys } from '@/utils';
 import {
   BLOWPIPE_IDS,
   CAST_STANCES,
@@ -40,6 +40,72 @@ export const noStatExceptions = [
   'Bracelet of ethereum',
   'Atlatl dart',
 ];
+
+/**
+ * Whether an item is offered in the equipment search. Hides items with no stats (unless they have an effect),
+ * and broken, inactive, locked, LMS and other duplicate versions.
+ */
+export const isSearchableEquipment = (eq: EquipmentPiece): boolean => !((
+  (Object.values(eq.bonuses).every((val) => val === 0))
+  && (Object.values(eq.offensive).every((val) => val === 0))
+  && (Object.values(eq.defensive).every((val) => val === 0))
+  && (eq.speed === 4 || eq.speed <= 0)
+  && !noStatExceptions.includes(eq.name)
+)
+  || eq.version.match(/^(Broken|Inactive|Locked)$/)
+  || eq.name.match(/\((Last Man Standing|historical|beta)\)$/)
+  || eq.name.match(/(Fine mesh net|Wilderness champion amulet|\(Wilderness Wars)/)
+  || eq.name.match(/^Crystal .* \(i\)$/));
+
+const findDart = (name: string): EquipmentPiece | undefined => {
+  const eq = availableEquipment.find((e) => e.name === name);
+  if (!eq) {
+    console.warn(`Failed to locate dart [${name}] for blowpipe dart entry generation, proceeding without this option.`);
+  }
+  return eq;
+};
+
+/**
+ * Darts that can be loaded into a blowpipe.
+ */
+export const DARTS: EquipmentPiece[] = [
+  findDart('Bronze dart'),
+  findDart('Iron dart'),
+  findDart('Steel dart'),
+  findDart('Mithril dart'),
+  findDart('Adamant dart'),
+  findDart('Rune dart'),
+  findDart('Black dart'),
+  findDart('Dragon dart'),
+  findDart('Amethyst dart'),
+].filter(isDefined);
+
+const DART_TIER: Record<string, number> = {
+  'Bronze dart': 0,
+  'Iron dart': 1,
+  'Steel dart': 2,
+  'Black dart': 3,
+  'Mithril dart': 4,
+  'Adamant dart': 5,
+  'Rune dart': 6,
+  'Amethyst dart': 7,
+  'Dragon dart': 8,
+};
+
+const MAX_DART_TIER_BY_BLOWPIPE: Record<string, number> = {
+  'Camphor blowpipe': DART_TIER['Mithril dart'],
+  'Ironwood blowpipe': DART_TIER['Adamant dart'],
+  'Rosewood blowpipe': DART_TIER['Rune dart'],
+};
+
+/**
+ * Whether a blowpipe can be loaded with a dart. The weaker Varlamore blowpipes have a maximum dart tier.
+ */
+export const canBlowpipeUseDart = (blowpipeName: string, dartName: string): boolean => {
+  const maxTier = MAX_DART_TIER_BY_BLOWPIPE[blowpipeName];
+  const dartTier = DART_TIER[dartName];
+  return maxTier === undefined || dartTier === undefined || dartTier <= maxTier;
+};
 
 /**
  * A map of base item ID -> variant item IDs for items that are identical in function. This includes

@@ -431,6 +431,28 @@ export const PotionMap: { [k in Potion]: { name: string, order: number, image: S
   },
 };
 
+/**
+ * The skill boosts from a set of potions. Boosts don't stack, so each skill gets the highest boost of any potion.
+ */
+export const calculatePotionBoosts = (potions: Potion[], skills: PlayerSkills): Partial<PlayerSkills> => {
+  const boosts: Partial<PlayerSkills> = {
+    atk: 0, def: 0, magic: 0, prayer: 0, ranged: 0, str: 0, mining: 0, herblore: 0, farming: 0,
+  };
+
+  for (const p of potions) {
+    const result = PotionMap[p].calculateFn(skills);
+    for (const k of Object.keys(result)) {
+      const r = result[k as keyof typeof result] as number;
+      if (r > boosts[k as keyof typeof boosts]!) {
+        // If this skill's boost is higher than what it already is, then change it
+        boosts[k as keyof typeof boosts] = r;
+      }
+    }
+  }
+
+  return boosts;
+};
+
 export const CombatStyleMap: { [k in EquipmentCategory]: { [k: string]: { image: string } } } = {
   [EquipmentCategory.BLASTER]: {
     Flamer: { image: '36' },
