@@ -162,6 +162,11 @@ const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || 'https://tools.runescape.wiki
 // Filenames are encoded since some contain characters like % that aren't valid in a URL as-is
 export const getCdnImage = (filename: string) => `${CDN_URL}/${filename.split('/').map(encodeURIComponent).join('/')}`;
 
+// The wiki's cdn has no spell icons, so they only come from cdn/spells when self-hosting (see scripts/fetchSpellImages.mjs)
+export const getSpellImage = (filename: string) => (
+  process.env.NEXT_PUBLIC_CDN_URL ? getCdnImage(`spells/${filename}`) : getWikiImage(filename)
+);
+
 export const isDevServer = () => process.env.NODE_ENV === 'development';
 
 export const keys = <T extends object>(o: T): (keyof T)[] => Object.keys(o) as (keyof T)[];

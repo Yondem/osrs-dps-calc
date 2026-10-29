@@ -1,6 +1,6 @@
 import React from 'react';
 import LazyImage from '@/app/components/generic/LazyImage';
-import { getWikiImage } from '@/utils';
+import { getSpellImage } from '@/utils';
 import { IconTrash } from '@tabler/icons-react';
 import { useStore } from '@/state';
 import { computed } from 'mobx';
@@ -18,7 +18,7 @@ const SpellContainer: React.FC = observer(() => {
       <div className="flex gap-2 items-center">
         {spell?.image && (
           <div>
-            <LazyImage responsive src={getWikiImage(spell.image)} alt="Spell" />
+            <LazyImage responsive src={getSpellImage(spell.image)} alt="Spell" />
           </div>
         )}
         <div>

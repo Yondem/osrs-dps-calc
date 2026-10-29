@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 /**
  * Allowlist of what self-hosted builds may load, so the page can't contact anything else even if a dependency tried to.
- * Other sites: spell icons and player lookups (oldschool.runescape.wiki), opening old wiki share links
+ * Other sites: player lookups (oldschool.runescape.wiki), opening old wiki share links
  * (tools.runescape.wiki) and the RuneLite WikiSync plugin on your own computer (ws://localhost).
  * Next.js inlines its startup scripts, so those need 'unsafe-inline'.
  */
@@ -27,7 +27,7 @@ const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://oldschool.runescape.wiki",
+  "img-src 'self' data: blob:",
   "font-src 'self'",
   "connect-src 'self' https://oldschool.runescape.wiki https://tools.runescape.wiki ws://localhost:*",
   "worker-src 'self' blob:",

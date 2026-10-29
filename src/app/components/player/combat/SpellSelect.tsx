@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore } from '@/state';
 import { observer } from 'mobx-react-lite';
-import { getWikiImage } from '@/utils';
+import { getSpellImage } from '@/utils';
 import { Spell, Spellbook, Spellement } from '@/types/Spell';
 import Combobox from '@/app/components/generic/Combobox';
 import LazyImage from '@/app/components/generic/LazyImage';
@@ -45,7 +45,7 @@ const SpellSelect: React.FC = observer(() => {
         <div className="flex items-center gap-2">
           {item.spell.image && (
           <div className="basis-4 flex justify-center h-[20px] w-auto">
-            <LazyImage responsive src={getWikiImage(item.spell.image)} alt="" />
+            <LazyImage responsive src={getSpellImage(item.spell.image)} alt="" />
           </div>
           )}
           <div className="flex items-center gap-0">
