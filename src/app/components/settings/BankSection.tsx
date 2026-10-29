@@ -3,12 +3,11 @@ import { observer } from 'mobx-react-lite';
 import { toast } from 'react-toastify';
 import { IconClipboard, IconTrash } from '@tabler/icons-react';
 import { useStore } from '@/state';
-import Toggle from '@/app/components/generic/Toggle';
 import { countOwnedEquipment, parseBankMemoryExport } from '@/lib/Bank';
 
 const BankSection: React.FC = observer(() => {
   const store = useStore();
-  const { bank, ownedEquipmentIds, prefs } = store;
+  const { bank, ownedEquipmentIds } = store;
   const [text, setText] = useState('');
   const [error, setError] = useState('');
 
@@ -55,12 +54,6 @@ const BankSection: React.FC = observer(() => {
               Clear
             </button>
           </div>
-          <Toggle
-            className="mt-2"
-            checked={prefs.bankOwnedOnly}
-            setChecked={(c) => store.updatePreferences({ bankOwnedOnly: c })}
-            label="Only show items in my bank in the equipment search"
-          />
         </div>
       )}
       <ol className="list-decimal list-inside">
@@ -81,7 +74,7 @@ const BankSection: React.FC = observer(() => {
       </ol>
       <button
         type="button"
-        className="form-control mt-3 w-full flex justify-center items-center gap-1 py-2 font-bold hover:scale-[1.02] transition-transform"
+        className="form-control mt-3 w-full flex justify-center items-center gap-1 py-2 font-bold hover:brightness-110 transition"
         onClick={pasteFromClipboard}
       >
         <IconClipboard className="w-5" />
@@ -107,10 +100,6 @@ const BankSection: React.FC = observer(() => {
           Import
         </button>
       </div>
-      <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">
-        Bank Memory only records your bank, not what you are wearing or carrying. Bank before exporting if you
-        want those included.
-      </p>
     </div>
   );
 });

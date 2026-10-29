@@ -7,11 +7,18 @@ import {
 import { useStore } from '@/state';
 import { SavedSetup } from '@/types/State';
 import { PlayerEquipment } from '@/types/Player';
+import { PlayerCombatStyle } from '@/types/PlayerCombatStyle';
 import EquipmentSelect from '@/app/components/player/equipment/EquipmentSelect';
 import ItemChip from '@/app/components/settings/ItemChip';
 import { EQUIPMENT_SLOTS, resolveSavedSetupItem, toSavedSetupItem } from '@/lib/SavedSetups';
-import { PrayerMap } from '@/enums/Prayer';
-import { PotionMap } from '@/utils';
+import BuffRow from '@/app/components/settings/BuffRow';
+import { Prayer } from '@/enums/Prayer';
+import Potion from '@/enums/Potion';
+import { EquipmentCategory } from '@/enums/EquipmentCategory';
+import { getCombatStylesForCategory } from '@/utils';
+import {
+  AUTO_BUFF_STYLES, autoBuffStyleFor, potionOptionsFor, prayerOptionsFor,
+} from '@/lib/AutoBuffs';
 
 const SLOT_LABELS: { [slot in keyof PlayerEquipment]: string } = {
   head: 'Head',
@@ -26,6 +33,8 @@ const SLOT_LABELS: { [slot in keyof PlayerEquipment]: string } = {
   feet: 'Feet',
   ring: 'Ring',
 };
+
+const sameStyle = (a: PlayerCombatStyle, b: PlayerCombatStyle | undefined) => a.name === b?.name && a.stance === b?.stance && a.type === b?.type;
 
 const SetupNameInput: React.FC<{ setup: SavedSetup }> = observer(({ setup }) => {
   const store = useStore();
@@ -62,12 +71,21 @@ const SetupEditor: React.FC<{ setup: SavedSetup }> = observer(({ setup }) => {
     const equipment = { ...setup.equipment, [slot]: item };
 
     // Mirror the game: a two-handed weapon and a shield can't be worn together.
-    const weapon = resolveSavedSetupItem(equipment.weapon);
-    if (item && slot === 'weapon' && weapon?.isTwoHanded) equipment.shield = null;
-    if (item && slot === 'shield' && weapon?.isTwoHanded) equipment.weapon = null;
+    const newWeapon = resolveSavedSetupItem(equipment.weapon);
+    if (item && slot === 'weapon' && newWeapon?.isTwoHanded) equipment.shield = null;
+    if (item && slot === 'shield' && newWeapon?.isTwoHanded) equipment.weapon = null;
 
-    store.updateSavedSetup(setup.id, { equipment });
+    // A new weapon gets its first style, unless it has the same style as the old one
+    const newStyles = getCombatStylesForCategory(resolveSavedSetupItem(equipment.weapon)?.category ?? EquipmentCategory.NONE);
+    const keepStyle = newStyles.some((s) => sameStyle(s, setup.style));
+
+    store.updateSavedSetup(setup.id, { equipment, ...(keepStyle ? {} : { style: newStyles[0] }) });
   };
+
+  const weapon = resolveSavedSetupItem(setup.equipment.weapon);
+  const styles = getCombatStylesForCategory(weapon?.category ?? EquipmentCategory.NONE);
+  // Prayers and potions for the weapon's style are offered, or all of them if that's unknown
+  const buffStyle = weapon && setup.style ? autoBuffStyleFor(weapon, setup.style) : null;
 
   return (
     <div className="mt-2">
@@ -99,14 +117,46 @@ const SetupEditor: React.FC<{ setup: SavedSetup }> = observer(({ setup }) => {
           );
         })}
       </div>
-      <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">
-        {'Combat style: '}
-        {setup.style ? `${setup.style.name} (${setup.style.stance})` : 'default'}
-        {setup.spellName ? ` · Spell: ${setup.spellName}` : ''}
-        {setup.prayers ? ` · Prayers: ${setup.prayers.map((p) => PrayerMap[p].name).join(', ') || 'none'}` : ''}
-        {setup.potions ? ` · Potions: ${setup.potions.map((p) => PotionMap[p].name).join(', ') || 'none'}` : ''}
-        {' · To change these, set them on a loadout and use "Overwrite with current".'}
-      </p>
+      <div className="mt-2 flex items-start gap-2 py-1">
+        <span className="basis-16 shrink-0 pt-0.5 text-gray-500 dark:text-gray-300">Style</span>
+        <div className="flex flex-wrap gap-1 grow">
+          {styles.map((s) => {
+            const selected = sameStyle(s, setup.style);
+            return (
+              <button
+                key={`${s.name}-${s.stance}-${s.type}`}
+                type="button"
+                className={`form-control px-2 py-0.5 ${selected ? 'ring-2 ring-green-500 font-bold' : 'opacity-70'}`}
+                onClick={() => store.updateSavedSetup(setup.id, { style: s })}
+              >
+                {s.stance && s.stance !== s.name ? `${s.name} (${s.stance})` : s.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {setup.spellName && (
+        <div className="flex items-start gap-2 py-1">
+          <span className="basis-16 shrink-0 text-gray-500 dark:text-gray-300">Spell</span>
+          {setup.spellName}
+        </div>
+      )}
+      <BuffRow
+        id={`settings-setup-${setup.id}-prayers`}
+        label="Prayers"
+        kind="prayer"
+        chosen={setup.prayers ?? []}
+        options={buffStyle ? prayerOptionsFor(buffStyle) : AUTO_BUFF_STYLES.flatMap(prayerOptionsFor)}
+        onChange={(prayers) => store.updateSavedSetup(setup.id, { prayers: prayers as Prayer[] })}
+      />
+      <BuffRow
+        id={`settings-setup-${setup.id}-potions`}
+        label="Potions"
+        kind="potion"
+        chosen={setup.potions ?? []}
+        options={potionOptionsFor(buffStyle ?? 'any')}
+        onChange={(potions) => store.updateSavedSetup(setup.id, { potions: potions as Potion[] })}
+      />
     </div>
   );
 });

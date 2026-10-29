@@ -58,7 +58,7 @@ const ResultsContainer = observer(() => {
           }
         </button>
       </div>
-      <HitDistribution />
+      {!prefs.hiddenGraphs.includes('hitDistribution') && <HitDistribution />}
     </div>
   );
 });

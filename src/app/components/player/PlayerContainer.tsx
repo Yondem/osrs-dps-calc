@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/state';
 import { calculateCombatLevel } from '@/utils';
-import PlayerInnerContainer from '@/app/components/player/PlayerInnerContainer';
+import PlayerInnerContainer, { PlayerTabName } from '@/app/components/player/PlayerInnerContainer';
 import LoadoutName from '@/app/components/player/LoadoutName';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import WikiSyncButton from 'src/app/components/player/WikiSyncButton';
@@ -14,9 +14,26 @@ const PlayerContainer: React.FC = observer(() => {
   const {
     loadouts, player, selectedLoadout, canCreateLoadout, createLoadout, renameLoadout, deleteLoadout,
   } = store;
+  const [tab, setTab] = useState<PlayerTabName>('equipment');
+  const columnRef = useRef<HTMLDivElement>(null);
+  const [equipmentHeight, setEquipmentHeight] = useState<number>();
+
+  // Equipment is the tallest tab. The column keeps its height on the other tabs, without stretching their background,
+  // so the graphs below stay in the same place.
+  useEffect(() => {
+    const column = columnRef.current;
+    if (tab !== 'equipment' || !column) return undefined;
+
+    const parts = [...column.children];
+    const measure = () => setEquipmentHeight(parts.reduce((h, el) => h + el.getBoundingClientRect().height, 0));
+    measure();
+    const resizeObserver = new ResizeObserver(measure);
+    parts.forEach((el) => resizeObserver.observe(el));
+    return () => resizeObserver.disconnect();
+  }, [tab]);
 
   return (
-    <div className="flex flex-col w-[350px]">
+    <div ref={columnRef} className="flex flex-col w-[350px]" style={{ minHeight: equipmentHeight }}>
       <div
         className="sm:rounded sm:rounded-b-none text-sm font-bold font-serif flex gap-2 items-center bg-transparent text-white border-b-4 border-orange-300 dark:border-orange-700"
       >
@@ -77,7 +94,7 @@ const PlayerContainer: React.FC = observer(() => {
             </button>
           </div>
         </div>
-        <PlayerInnerContainer />
+        <PlayerInnerContainer selected={tab} setSelected={setTab} />
       </div>
     </div>
   );

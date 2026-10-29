@@ -24,6 +24,7 @@ const Home: NextPage = observer(() => {
   const calc = useCalc();
   const store = useStore();
   store.debug = process.env && process.env.NODE_ENV === 'development';
+  const { hiddenGraphs } = store.prefs;
 
   useEffect(() => {
     store.setCalcWorker(calc);
@@ -85,6 +86,7 @@ const Home: NextPage = observer(() => {
       () => toJS(store.loadouts),
       () => toJS(store.monster),
       () => store.prefs.showTtkComparison,
+      () => store.prefs.hiddenGraphs.includes('ttkComparison'),
       () => store.prefs.showNPCVersusPlayerResults,
       () => store.prefs.hitDistsHideZeros,
     ];
@@ -124,15 +126,19 @@ const Home: NextPage = observer(() => {
       {/* Additional graphs and stuff */}
       <div className="max-w-[1420px] mx-auto mb-8">
         {/* LoadoutComparison requires its own calc context */}
-        <CalcProvider>
-          <LoadoutComparison />
-        </CalcProvider>
-        <TtkComparison />
-        <NPCVersusPlayerResultsContainer />
+        {!hiddenGraphs.includes('loadoutComparison') && (
+          <CalcProvider>
+            <LoadoutComparison />
+          </CalcProvider>
+        )}
+        {!hiddenGraphs.includes('ttkComparison') && <TtkComparison />}
+        {!hiddenGraphs.includes('npcVersusPlayer') && <NPCVersusPlayerResultsContainer />}
         <DebugPanels />
       </div>
-      <Tooltip id="tooltip" />
-      <Tooltip id="tooltip-warning" />
+      {/* Hover only: opening on focus kept a button's tooltip up after closing the dialog it opened. z-50 puts
+          tooltips above dialogs, which would otherwise cover them. */}
+      <Tooltip id="tooltip" className="z-50" openEvents={{ mouseenter: true }} />
+      <Tooltip id="tooltip-warning" className="z-50" openEvents={{ mouseenter: true }} />
       <ToastContainer
         position="bottom-right"
         hideProgressBar

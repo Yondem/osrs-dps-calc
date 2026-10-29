@@ -6,13 +6,12 @@ interface ToggleProps {
   setChecked: (checked: boolean) => void;
   disabled?: boolean;
   label?: string | React.ReactNode;
-  help?: string;
   className?: string;
 }
 
 const Toggle: React.FC<ToggleProps> = (props) => {
   const {
-    checked, setChecked, disabled, label, help, className,
+    checked, setChecked, disabled, label, className,
   } = props;
 
   return (
@@ -24,7 +23,7 @@ const Toggle: React.FC<ToggleProps> = (props) => {
           onChange={setChecked}
           className={`${
             checked ? 'bg-green-500 dark:bg-green-400' : 'bg-gray-400'
-          } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2`}
+          } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none`}
         >
           <span
             className={`${
@@ -34,15 +33,6 @@ const Toggle: React.FC<ToggleProps> = (props) => {
         </Switch>
         <Switch.Label className="ml-2 text-gray-500 dark:text-white">
           {label}
-          {' '}
-          {help && (
-          <span
-            title={help}
-            className="cursor-help ml-1 transition-[background] bg-body-200 dark:bg-dark-200 dark:hover:bg-dark-100 hover:bg-body-300 px-1 rounded no-underline"
-          >
-            ?
-          </span>
-          )}
         </Switch.Label>
       </div>
     </Switch.Group>

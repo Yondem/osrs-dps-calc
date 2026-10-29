@@ -14,6 +14,8 @@ interface IModalProps {
   maxWidth?: string;
   onOpen?: () => void;
   initialFocus?: React.MutableRefObject<HTMLElement | null>;
+  /** Keep the top edge in place, so the dialog only grows downwards as its content changes */
+  anchorTop?: boolean;
 }
 
 const Modal: React.FC<PropsWithChildren<IModalProps>> = (props) => {
@@ -27,6 +29,7 @@ const Modal: React.FC<PropsWithChildren<IModalProps>> = (props) => {
     maxWidth,
     onOpen,
     initialFocus,
+    anchorTop,
   } = props;
 
   useEffect(() => {
@@ -36,17 +39,17 @@ const Modal: React.FC<PropsWithChildren<IModalProps>> = (props) => {
   return (
     <Transition
       show={isOpen}
-      enter="ease-out duration-300"
+      enter="transition-opacity ease-out duration-150"
       enterFrom="opacity-0"
       enterTo="opacity-100"
-      leave="ease-in duration-200"
+      leave="transition-opacity ease-in duration-100"
       leaveFrom="opacity-100"
       leaveTo="opacity-0"
       as={Fragment}
     >
       <Dialog onClose={() => setIsOpen(false)} initialFocus={initialFocus}>
         <div className="fixed inset-0 bg-black/60" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
+        <div className={`fixed inset-0 flex justify-center p-4 ${anchorTop ? 'items-start pt-[10vh] overflow-y-auto' : 'items-center'}`}>
           <Dialog.Panel className={`w-full ${maxWidth ?? 'max-w-lg'} rounded-xl bg-white dark:bg-dark-300 dark:text-white text-black shadow-xl`}>
             <Dialog.Title className="py-3 text-md bg-btns-300 dark:bg-dark-500 font-bold rounded-t-lg text-center text-white font-serif select-none relative flex justify-center items-center">
               {title}

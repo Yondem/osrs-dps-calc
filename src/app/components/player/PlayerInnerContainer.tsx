@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import combat from '@/public/img/tabs/combat.png';
 import skills from '@/public/img/tabs/skills.png';
 import equipment from '@/public/img/tabs/equipment.png';
@@ -11,11 +11,14 @@ import Skills from './Skills';
 import Prayers from './Prayers';
 import ExtraOptions from './ExtraOptions';
 
-type SelectedInputType = 'combat' | 'skills' | 'equipment' | 'options' | 'prayer';
+export type PlayerTabName = 'combat' | 'skills' | 'equipment' | 'options' | 'prayer';
 
-const PlayerInnerContainer: React.FC = () => {
-  const [selected, setSelected] = useState<SelectedInputType>('equipment');
+interface PlayerInnerContainerProps {
+  selected: PlayerTabName;
+  setSelected: (tab: PlayerTabName) => void;
+}
 
+const PlayerInnerContainer: React.FC<PlayerInnerContainerProps> = ({ selected, setSelected }) => {
   const renderSelected = () => {
     switch (selected) {
       case 'combat':

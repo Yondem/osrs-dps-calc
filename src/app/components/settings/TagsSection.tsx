@@ -6,29 +6,59 @@ import { EquipmentPiece } from '@/types/Player';
 import EquipmentSelect from '@/app/components/player/equipment/EquipmentSelect';
 import ItemChip from '@/app/components/settings/ItemChip';
 
+const TAGS_MAX_LENGTH = 100;
+
+/**
+ * An item's tags as one comma-separated text box, saved when it loses focus or Enter is pressed.
+ */
+const ItemTagsInput: React.FC<{ itemId: number, tags: string }> = observer(({ itemId, tags }) => {
+  const store = useStore();
+  const [value, setValue] = useState(tags);
+
+  const commit = () => {
+    if (value.trim()) {
+      store.setItemTags(itemId, value);
+    } else {
+      // Clearing the box keeps the old tags; the [x] is for removing them
+      setValue(tags);
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      className="form-control basis-1/2 min-w-0 px-2 py-1 font-mono font-bold"
+      aria-label="Tags"
+      value={value}
+      maxLength={TAGS_MAX_LENGTH}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+      }}
+    />
+  );
+});
+
 const TagsSection: React.FC = observer(() => {
   const store = useStore();
   const { itemTags } = store.custom;
   const [item, setItem] = useState<EquipmentPiece | null>(null);
   const [tag, setTag] = useState('');
 
-  const sortedTags = [...itemTags].sort((a, b) => a.tag.localeCompare(b.tag));
+  // One row per item, with its tags in the order they were added
+  const tagsByItem = new Map<number, string[]>();
+  for (const t of itemTags) tagsByItem.set(t.itemId, [...(tagsByItem.get(t.itemId) ?? []), t.tag]);
+  const rows = [...tagsByItem.entries()]
+    .map(([itemId, tags]) => ({ itemId, tags: tags.join(', ') }))
+    .sort((a, b) => a.tags.localeCompare(b.tags));
 
   return (
     <div>
-      <p className="mb-3">
-        Tags are search shortcuts. Tag the Twisted bow with
-        {' '}
-        <span className="font-mono font-bold">tbow</span>
-        , and typing
-        {' '}
-        <span className="font-mono font-bold">tbow</span>
-        {' '}
-        in the equipment search puts it first.
-      </p>
       <EquipmentSelect
         id="settings-tags-select"
         placeholder="Search for an item to tag..."
+        closeAfterSelect
         onSelectedItemChange={(option) => {
           if (option) setItem(option.equipment);
         }}
@@ -38,7 +68,7 @@ const TagsSection: React.FC = observer(() => {
         onSubmit={(e) => {
           e.preventDefault();
           if (!item || !tag.trim()) return;
-          store.addItemTag(tag, item.id);
+          store.setItemTags(item.id, [...(tagsByItem.get(item.id) ?? []), tag].join(','));
           setTag('');
         }}
       >
@@ -48,9 +78,9 @@ const TagsSection: React.FC = observer(() => {
         <input
           type="text"
           className="form-control basis-1/3 min-w-0 px-2 py-1 font-mono"
-          placeholder="tag, e.g. tbow"
+          placeholder="e.g. bowfa, fbow, faebow"
           value={tag}
-          maxLength={24}
+          maxLength={TAGS_MAX_LENGTH}
           onChange={(e) => setTag(e.target.value)}
         />
         <button
@@ -62,16 +92,17 @@ const TagsSection: React.FC = observer(() => {
         </button>
       </form>
       <div className="mt-4 flex flex-col gap-1">
-        {sortedTags.length === 0 && <p className="text-gray-500 dark:text-gray-300 italic">No tags yet.</p>}
-        {sortedTags.map((t) => (
-          <div key={`${t.tag}-${t.itemId}`} className="px-2 py-1 rounded bg-body-100 dark:bg-dark-400 flex items-center gap-2">
-            <span className="font-mono font-bold basis-24 shrink-0 truncate">{t.tag}</span>
+        {rows.length === 0 && <p className="text-gray-500 dark:text-gray-300 italic">No tags yet.</p>}
+        {rows.map(({ itemId, tags }) => (
+          <div key={itemId} className="px-2 py-1 rounded bg-body-100 dark:bg-dark-400 flex items-center gap-2">
+            {/* Keyed on the tags so the box resets when they change elsewhere, e.g. from the Add button */}
+            <ItemTagsInput key={tags} itemId={itemId} tags={tags} />
             <div className="min-w-0 grow">
               <ItemChip
-                piece={availableEquipment.find((eq) => eq.id === t.itemId)}
-                fallbackLabel={`Unknown item ${t.itemId}`}
-                onRemove={() => store.removeItemTag(t.tag, t.itemId)}
-                removeLabel="Remove tag"
+                piece={availableEquipment.find((eq) => eq.id === itemId)}
+                fallbackLabel={`Unknown item ${itemId}`}
+                onRemove={() => store.setItemTags(itemId, '')}
+                removeLabel="Remove tags"
               />
             </div>
           </div>

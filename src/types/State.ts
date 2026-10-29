@@ -26,6 +26,8 @@ export interface UI {
   isDefensiveReductionsExpanded: boolean;
 }
 
+export type GraphKey = 'hitDistribution' | 'loadoutComparison' | 'ttkComparison' | 'npcVersusPlayer';
+
 /**
  * User preferences that we store in the user's localStorage. You should not add any keys here that shouldn't be
  * saved locally and persist between sessions.
@@ -37,6 +39,7 @@ export interface Preferences {
   showLoadoutComparison: boolean;
   showTtkComparison: boolean;
   showNPCVersusPlayerResults: boolean;
+  hiddenGraphs: GraphKey[]; // graphs turned off in settings, which aren't shown at all
   hitDistsHideZeros: boolean; // legacy name
   hitDistShowSpec: boolean;
   resultsExpanded: boolean;

@@ -52,31 +52,43 @@ type RaidInputs = Pick<Monster['inputs'], 'partySize' | 'toaInvocationLevel' | '
 
 /**
  * Raid scaling for the whole monster list, shown when it has raid monsters: party size, ToA raid and path level and
- * CoX Challenge Mode. The values shown are the first monster's of each raid.
+ * CoX Challenge Mode, plus ToB Hard Mode when the ToB list is picked. The values shown are the first monster's of
+ * each raid.
  */
 const RaidSettings: React.FC<{
   monsters: Monster[],
   onChange: (changes: Partial<RaidInputs>) => void,
-}> = ({ monsters, onChange }) => {
+  tobHardMode?: { checked: boolean, onChange: (hard: boolean) => void },
+}> = ({ monsters, onChange, tobHardMode }) => {
   const toa = monsters.filter((m) => TOMBS_OF_AMASCUT_MONSTER_IDS.includes(m.id));
   const cox = monsters.filter((m) => m.attributes.includes(MonsterAttribute.XERICIAN));
   const party = monsters.filter((m) => PARTY_SIZE_REQUIRED_MONSTER_IDS.includes(m.id) || cox.includes(m));
-  if (party.length === 0) return null;
+  if (party.length === 0 && !tobHardMode) return null;
 
   return (
     <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
       <span className="font-bold">Raid settings</span>
-      <span className="flex items-center gap-1">
-        <NumberInput
-          className="form-control w-12 px-1 py-0"
-          min={1}
-          max={100}
-          value={party[0].inputs.partySize}
-          onChange={(v) => onChange({ partySize: v })}
-          aria-label="Party size"
+      {party.length > 0 && (
+        <span className="flex items-center gap-1">
+          <NumberInput
+            className="form-control w-12 px-1 py-0"
+            min={1}
+            max={100}
+            value={party[0].inputs.partySize}
+            onChange={(v) => onChange({ partySize: v })}
+            aria-label="Party size"
+          />
+          Party size
+        </span>
+      )}
+      {tobHardMode && (
+        <Toggle
+          className="!mb-0"
+          checked={tobHardMode.checked}
+          setChecked={tobHardMode.onChange}
+          label="ToB Hard Mode"
         />
-        Party size
-      </span>
+      )}
       {toa.length > 0 && (
         <>
           <span className="flex items-center gap-1">
@@ -349,7 +361,11 @@ const UpgradeRow: React.FC<{
 };
 
 const CUSTOM_LIST = 'Custom';
-const LIST_NAMES = [...UPGRADE_FINDER_PRESETS.map((p) => p.label), CUSTOM_LIST];
+const TOB = 'ToB';
+const TOB_HARD_MODE = 'ToB HM';
+// ToB Hard Mode is picked with a toggle under the ToB button, rather than a button of its own
+const LIST_NAMES = [...UPGRADE_FINDER_PRESETS.map((p) => p.label).filter((l) => l !== TOB_HARD_MODE), CUSTOM_LIST];
+const listButtonName = (list: string) => (list === TOB_HARD_MODE ? TOB : list);
 
 /**
  * For a list saved before there was one per raid: the preset it was loaded from, if every monster is in one.
@@ -360,7 +376,7 @@ const inferListName = (targets: UpgradeFinderTarget[]) => (targets.length > 0 &&
 const UpgradeFinderButton: React.FC = observer(() => {
   const store = useStore();
   const {
-    bank, ownedEquipmentIds, hiddenEquipmentIds, availableMonsters,
+    ownedEquipmentIds, hiddenEquipmentIds, availableMonsters,
   } = store;
   const savedTargets = store.prefs.upgradeFinderTargets;
   const [isOpen, setIsOpen] = useState(false);
@@ -529,20 +545,11 @@ const UpgradeFinderButton: React.FC = observer(() => {
         isOpen={isOpen}
         setIsOpen={setIsOpen}
         maxWidth="max-w-3xl"
-        title={(
-          <div className="flex gap-2 items-center">
-            <IconTrendingUp />
-            Upgrade finder
-          </div>
-        )}
+        title="Upgrade finder"
+        anchorTop
       >
         <div className="text-sm">
-          <p className="mb-3">
-            Finds the items you don&apos;t own yet that would speed up your kills the most, compared to the best setup you
-            can already make
-            {bank ? ' from your bank and loadouts' : ' from your loadouts (import your bank in Settings to use everything you own)'}
-            .
-          </p>
+          <p className="mb-3">Finds items you don&apos;t own yet that would speed up your kills the most</p>
 
           <div className="flex gap-1 mb-2">
             <button
@@ -557,28 +564,23 @@ const UpgradeFinderButton: React.FC = observer(() => {
               className={`form-control px-3 py-1 ${mode === 'list' ? 'ring-2 ring-green-500 font-bold' : 'opacity-70'}`}
               onClick={() => setMode('list')}
             >
-              {`Monster list: ${activeList}${savedTargets.length ? ` (${savedTargets.length})` : ''}`}
+              {`Raid: ${activeList}`}
             </button>
           </div>
 
           {mode === 'list' && (
             <div className="mb-3 p-2 rounded border border-body-300 dark:border-dark-200">
               <div className="flex flex-wrap gap-1 mb-2 items-center">
-                {LIST_NAMES.map((name) => {
-                  const preset = UPGRADE_FINDER_PRESETS.find((p) => p.label === name);
-                  return (
-                    <button
-                      key={name}
-                      type="button"
-                      className={`form-control px-2 py-0.5 ${name === activeList ? 'ring-2 ring-green-500 font-bold' : 'opacity-70'}`}
-                      onClick={() => switchList(name)}
-                      data-tooltip-id="tooltip"
-                      data-tooltip-content={`${preset ? preset.description : 'Your own monster list.'} Your changes to it are kept.`}
-                    >
-                      {name}
-                    </button>
-                  );
-                })}
+                {LIST_NAMES.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={`form-control px-2 py-0.5 ${name === listButtonName(activeList) ? 'ring-2 ring-green-500 font-bold' : 'opacity-70'}`}
+                    onClick={() => switchList(name === TOB && activeList === TOB_HARD_MODE ? TOB_HARD_MODE : name)}
+                  >
+                    {name}
+                  </button>
+                ))}
               </div>
               <div className="flex flex-wrap gap-1 mb-2 items-center">
                 <button
@@ -610,7 +612,14 @@ const UpgradeFinderButton: React.FC = observer(() => {
                 )}
                 <span className="text-xs text-gray-500 dark:text-gray-300 ml-auto">Kills per run weight each monster&apos;s kill time.</span>
               </div>
-              <RaidSettings monsters={listTargets.filter((t): t is Target => !!t).map((t) => t.monster)} onChange={applyRaidInputs} />
+              <RaidSettings
+                monsters={listTargets.filter((t): t is Target => !!t).map((t) => t.monster)}
+                onChange={applyRaidInputs}
+                tobHardMode={listButtonName(activeList) === TOB ? {
+                  checked: activeList === TOB_HARD_MODE,
+                  onChange: (hard) => switchList(hard ? TOB_HARD_MODE : TOB),
+                } : undefined}
+              />
               {savedTargets.length === 0 && <p className="italic text-gray-500 text-xs">{activePreset ? `Reset to get the ${activePreset.label} monsters back, or add monsters.` : 'Add monsters with "Add current monster".'}</p>}
               <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto pr-1">
                 {savedTargets.map((t, i) => {
@@ -758,7 +767,6 @@ const UpgradeFinderButton: React.FC = observer(() => {
               checked={useAutoBuffs}
               setChecked={setUseAutoBuffs}
               label="Use my auto buffs prayers and potions"
-              help="Off: every setup is scored with this loadout's current prayers and potions."
               className="!mb-0"
             />
           </div>
@@ -784,7 +792,6 @@ const UpgradeFinderButton: React.FC = observer(() => {
             className="form-control w-full flex justify-center items-center gap-1 py-2 font-bold hover:scale-[1.02] transition-transform"
             onClick={() => search()}
           >
-            <IconTrendingUp className="w-5" />
             {progress !== null ? 'Searching...' : 'Find upgrades'}
           </button>
           {progress !== null && (

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useStore } from '@/state';
 import { observer } from 'mobx-react-lite';
 import { getCdnImage } from '@/utils';
@@ -67,6 +67,8 @@ interface IEquipmentSelectProps {
   ownedEquipmentIds?: Set<number>;
   /** Equipment with these IDs is never listed (e.g. items the user filtered out in settings). */
   excludedEquipmentIds?: Set<number>;
+  /** Close and clear the search once an item is picked, instead of keeping it open to pick more. */
+  closeAfterSelect?: boolean;
   placeholder?: string;
   id?: string;
 }
@@ -87,9 +89,58 @@ const tagsFirstSort = (items: EquipmentOption[], inputValue: string, tagsById: M
   return [...items].sort((a, b) => rank(a) - rank(b));
 };
 
+// The variant groups (by base item ID) each item ID is in, worked out once rather than on every search
+const VARIANT_GROUPS_BY_ID = new Map<number, number[]>();
+for (const [base, vars] of Object.entries(equipmentAliases)) {
+  const baseId = parseInt(base);
+  for (const id of new Set([baseId, ...vars])) {
+    VARIANT_GROUPS_BY_ID.set(id, [...(VARIANT_GROUPS_BY_ID.get(id) || []), baseId]);
+  }
+}
+
+/**
+ * Lists each item once rather than every variant of it: the base item if it's in the results, otherwise the first of
+ * its variants.
+ */
+const hideVariants = (v: EquipmentOption[]) => {
+  const remainingVariantGroups: { [k: number]: number[] } = {};
+  const remainingVariantMemberships: { [k: number]: number } = {}; // reverse map
+  const remainingIds = new Set(v.map((o) => o.equipment.id));
+
+  // For each option, add it to a variant group if necessary.
+  for (const eqOpt of v) {
+    const eqId = eqOpt.equipment.id;
+    for (const baseId of VARIANT_GROUPS_BY_ID.get(eqId) || []) {
+      remainingVariantGroups[baseId] = remainingVariantGroups[baseId] ? [...remainingVariantGroups[baseId], eqId] : [eqId];
+      remainingVariantMemberships[eqId] = baseId;
+    }
+  }
+
+  return v.filter((eqOpt) => {
+    const eqId = eqOpt.equipment.id;
+
+    // This is a base variant, keep it in the list
+    const baseId: number | undefined = remainingVariantMemberships[eqId];
+    if (baseId === eqId) return true;
+
+    if (baseId !== undefined) {
+      const group = remainingVariantGroups[baseId];
+      if (group.includes(eqId)) {
+        // Keep this item in the list if it's the first result,
+        // and its base variant is filtered
+        return group.indexOf(eqId) === 0 && !remainingIds.has(baseId);
+      }
+    }
+
+    // For everything else (probably items that aren't variants), keep in the list
+    return true;
+  });
+};
+
 const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
   const {
-    customAvailableEquipmentFilter, onSelectedItemChange, canonicalize, ownedEquipmentIds, excludedEquipmentIds, placeholder, id,
+    customAvailableEquipmentFilter, onSelectedItemChange, canonicalize, ownedEquipmentIds, excludedEquipmentIds, closeAfterSelect, placeholder,
+    id,
   } = props;
   const store = useStore();
   const { itemTags } = store.custom;
@@ -155,13 +206,21 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
     return gauntletSort(entries, store.monster.id);
   }, [store.monster.id, customAvailableEquipmentFilter, ownedEquipmentIds, excludedEquipmentIds, tagsById]);
 
+  // Kept stable between renders, so the search results are only worked out again when something changes
+  const customSort = useCallback(
+    (v: EquipmentOption[], inputValue: string) => tagsFirstSort(gauntletSort(v, store.monster.id), inputValue, tagsById),
+    [store.monster.id, tagsById],
+  );
+
   return (
     <Combobox<EquipmentOption>
       id={id ?? 'equipment-select'}
       className="w-full"
       items={options}
-      keepOpenAfterSelect
-      keepPositionAfterSelect
+      keepOpenAfterSelect={!closeAfterSelect}
+      keepPositionAfterSelect={!closeAfterSelect}
+      resetAfterSelect={closeAfterSelect}
+      blurAfterSelect={closeAfterSelect}
       placeholder={placeholder ?? 'Search for equipment...'}
       onSelectedItemChange={(item) => {
         if (onSelectedItemChange) {
@@ -190,47 +249,8 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
           </div>
         </div>
       )}
-      customFilter={(v) => {
-        if (canonicalize === false) {
-          return v;
-        }
-
-        const remainingVariantGroups: { [k: number]: number[] } = {};
-        const remainingVariantMemberships: { [k: number]: number } = {}; // reverse map
-
-        // For each option, add it to a variant group if necessary.
-        for (const eqOpt of v) {
-          const eqId = eqOpt.equipment.id;
-          for (const [base, vars] of Object.entries(equipmentAliases)) {
-            const baseId = parseInt(base);
-            if (baseId === eqId || vars.includes(eqId)) {
-              remainingVariantGroups[baseId] = remainingVariantGroups[baseId] ? [...remainingVariantGroups[baseId], eqId] : [eqId];
-              remainingVariantMemberships[eqId] = baseId;
-            }
-          }
-        }
-
-        return v.filter((eqOpt) => {
-          const eqId = eqOpt.equipment.id;
-
-          // This is a base variant, keep it in the list
-          const baseId: number | undefined = remainingVariantMemberships[eqId];
-          if (baseId === eqId) return true;
-
-          if (baseId !== undefined) {
-            const group = remainingVariantGroups[baseId];
-            if (group.includes(eqId)) {
-              // Keep this item in the list if it's the first result,
-              // and its base variant is filtered
-              return group.indexOf(eqId) === 0 && !v.find((o) => o.equipment.id === baseId);
-            }
-          }
-
-          // For everything else (probably items that aren't variants), keep in the list
-          return true;
-        });
-      }}
-      customSort={(v, inputValue) => tagsFirstSort(gauntletSort(v, store.monster.id), inputValue, tagsById)}
+      customFilter={canonicalize === false ? undefined : hideVariants}
+      customSort={customSort}
     />
   );
 });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import {
-  IconBuildingBank, IconDeviceFloppy, IconEyeOff, IconFlask, IconList, IconSettings, IconTag,
+  IconBuildingBank, IconChartBar, IconDeviceFloppy, IconEyeOff, IconFlask, IconList, IconSettings, IconTag,
 } from '@tabler/icons-react';
 import { useStore } from '@/state';
 import Modal from '@/app/components/generic/Modal';
@@ -11,6 +11,7 @@ import TagsSection from '@/app/components/settings/TagsSection';
 import FilteredItemsSection from '@/app/components/settings/FilteredItemsSection';
 import BankSection from '@/app/components/settings/BankSection';
 import AutoBuffsSection from '@/app/components/settings/AutoBuffsSection';
+import GraphsSection from '@/app/components/settings/GraphsSection';
 
 const SECTIONS = [
   {
@@ -21,6 +22,9 @@ const SECTIONS = [
   },
   {
     key: 'autobuffs', label: 'Auto buffs', Icon: IconFlask, Component: AutoBuffsSection,
+  },
+  {
+    key: 'graphs', label: 'Graphs', Icon: IconChartBar, Component: GraphsSection,
   },
   {
     key: 'tags', label: 'Tags', Icon: IconTag, Component: TagsSection,
@@ -66,7 +70,7 @@ const SettingsModal: React.FC = observer(() => {
             </button>
           ))}
         </nav>
-        <div className="grow min-w-0 h-[65vh] overflow-y-auto pr-1 pb-56">
+        <div className="grow min-w-0 h-[65vh] overflow-y-auto pr-1">
           <h2 className="font-serif font-bold text-lg mb-2">{section.label}</h2>
           <section.Component />
         </div>

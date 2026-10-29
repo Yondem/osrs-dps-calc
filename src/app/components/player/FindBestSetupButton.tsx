@@ -179,31 +179,33 @@ const FindBestSetupButton: React.FC = observer(() => {
         isOpen={isOpen}
         setIsOpen={setIsOpen}
         maxWidth="max-w-2xl"
-        title={(
-          <div className="flex gap-2 items-center">
-            <IconSparkles />
-            Find best setup
-          </div>
-        )}
+        title="Find best setup"
+        anchorTop
       >
         <div className="text-sm">
           <p className="mb-3">
-            {'Searches for the highest DPS gear against '}
+            {'Find the best setup against: '}
             <span className="font-bold">{store.monster.name}</span>
-            {', using this loadout\'s stats and other buffs.'}
           </p>
           <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mb-3">
             <div>
               <p className="font-bold mb-1">Items</p>
               <div className="flex gap-1">
-                <button
-                  type="button"
-                  disabled={!bank}
-                  className={`form-control px-3 py-1 ${useBank ? 'ring-2 ring-green-500 font-bold' : 'opacity-70'}`}
-                  onClick={() => setSource('bank')}
+                {/* Disabled buttons don't get hover events, so the tooltip goes on a wrapper */}
+                <span
+                  className="flex"
+                  data-tooltip-id="tooltip"
+                  data-tooltip-content={bank ? undefined : 'Import your bank in Settings to search only items you own'}
                 >
-                  My bank
-                </button>
+                  <button
+                    type="button"
+                    disabled={!bank}
+                    className={`form-control px-3 py-1 ${useBank ? 'ring-2 ring-green-500 font-bold' : 'opacity-70'}`}
+                    onClick={() => setSource('bank')}
+                  >
+                    My bank
+                  </button>
+                </span>
                 <button
                   type="button"
                   className={`form-control px-3 py-1 ${!useBank ? 'ring-2 ring-green-500 font-bold' : 'opacity-70'}`}
@@ -212,11 +214,11 @@ const FindBestSetupButton: React.FC = observer(() => {
                   All items
                 </button>
               </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
-                {bank
-                  ? 'My bank also includes what this loadout is wearing. Filtered items are always skipped.'
-                  : 'Import your bank in Settings to search only items you own.'}
-              </p>
+              {bank && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+                  My bank also includes what this loadout is wearing. Filtered items are always skipped.
+                </p>
+              )}
             </div>
             <div>
               <p className="font-bold mb-1">Styles</p>
@@ -237,8 +239,7 @@ const FindBestSetupButton: React.FC = observer(() => {
           <Toggle
             checked={useAutoBuffs}
             setChecked={setUseAutoBuffs}
-            label="Use my auto buffs prayers and potions for each style"
-            help="Off: every setup is scored with this loadout's current prayers and potions."
+            label="Use my auto buffs prayers and potions"
           />
           <button
             type="button"
@@ -246,7 +247,6 @@ const FindBestSetupButton: React.FC = observer(() => {
             className="form-control mt-2 w-full flex justify-center items-center gap-1 py-2 font-bold hover:scale-[1.02] transition-transform"
             onClick={search}
           >
-            <IconSparkles className="w-5" />
             {progress !== null ? 'Searching...' : 'Find best setup'}
           </button>
           {progress !== null && (

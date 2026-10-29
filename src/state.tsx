@@ -234,6 +234,7 @@ class GlobalState implements State {
     showLoadoutComparison: false,
     showTtkComparison: false,
     showNPCVersusPlayerResults: false,
+    hiddenGraphs: [],
     hitDistsHideZeros: false,
     hitDistShowSpec: false,
     resultsExpanded: false,
@@ -634,14 +635,17 @@ class GlobalState implements State {
     this.updateCustomSettings({ hiddenItemIds: this.custom.hiddenItemIds.filter((i) => i !== id) });
   }
 
-  addItemTag(tag: string, itemId: number) {
-    const normalised = tag.trim().toLowerCase();
-    if (!normalised || this.custom.itemTags.some((t) => t.tag === normalised && t.itemId === itemId)) return;
-    this.updateCustomSettings({ itemTags: [...this.custom.itemTags, { tag: normalised, itemId }] });
-  }
-
-  removeItemTag(tag: string, itemId: number) {
-    this.updateCustomSettings({ itemTags: this.custom.itemTags.filter((t) => !(t.tag === tag && t.itemId === itemId)) });
+  /**
+   * Replace an item's tags with a comma-separated list, e.g. "bowfa, fbow, faebow". An empty list removes them all.
+   */
+  setItemTags(itemId: number, tags: string) {
+    const normalised = [...new Set(tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
+    this.updateCustomSettings({
+      itemTags: [
+        ...this.custom.itemTags.filter((t) => t.itemId !== itemId),
+        ...normalised.map((tag) => ({ tag, itemId })),
+      ],
+    });
   }
 
   setPresetsHidden(presetKeys: string[], hidden: boolean) {
@@ -988,7 +992,8 @@ class GlobalState implements State {
       request(WorkerRequestType.COMPUTE_REVERSE),
     );
 
-    if (this.prefs.showTtkComparison && !INFINITE_HEALTH_MONSTERS.includes(this.monster.id)) {
+    if (this.prefs.showTtkComparison && !this.prefs.hiddenGraphs.includes('ttkComparison')
+      && !INFINITE_HEALTH_MONSTERS.includes(this.monster.id)) {
       promises.push(
         (async (): Promise<void> => {
           const parallel = process.env.NEXT_PUBLIC_SERIAL_TTK !== 'true';
