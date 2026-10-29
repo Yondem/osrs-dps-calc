@@ -14,6 +14,10 @@ const BASE_PATH = '/osrs-dps';
 const APP_URL = `http://localhost:${PORT}${BASE_PATH}`;
 const ROOT = path.join(__dirname, 'app');
 
+// `electron . --dev` loads a running `next dev -p 37780` instead of the static export, to try changes with your saved
+// data without rebuilding (it's stored per origin, so the dev server has to use the same port).
+const DEV = process.argv.includes('--dev');
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -193,6 +197,14 @@ const createWindow = () => {
     mainWindow.webContents.setZoomFactor(loadSettings().zoomFactor || 1);
   });
 
+  if (DEV) {
+    mainWindow.webContents.on('did-fail-load', (event, code, description, url, isMainFrame) => {
+      if (isMainFrame) {
+        dialog.showErrorBox('DPS Calculator', `Could not load ${url} (${description}).\n\nStart the dev server first with \`corepack yarn desktop:dev-server\`.`);
+      }
+    });
+  }
+
   mainWindow.loadURL(`${APP_URL}/`);
 };
 
@@ -208,7 +220,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     try {
-      await startServer();
+      if (!DEV) await startServer();
     } catch (e) {
       dialog.showErrorBox('DPS Calculator', `Could not start on port ${PORT}: ${e.message}\n\nSomething else is using that port.`);
       app.quit();

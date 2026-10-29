@@ -19,6 +19,8 @@
     "cdn-dispatch": "gh workflow run regenerate.yml",
     "desktop:install": "npm --prefix desktop install",
     "desktop:start": "npm --prefix desktop start",
+    "desktop:dev-server": "next dev -p 37780",
+    "desktop:dev": "npm --prefix desktop run dev",
     "desktop": "next build && node desktop/build.mjs"
   },
   "dependencies": {

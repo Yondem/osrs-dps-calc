@@ -7,6 +7,13 @@
       "runtimeArgs": ["yarn", "dev"],
       "port": 3000,
       "url": "http://localhost:3000"
+    },
+    {
+      "name": "dps-calc-desktop",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["yarn", "desktop:dev-server"],
+      "port": 37780,
+      "url": "http://localhost:37780"
     }
   ]
 }
