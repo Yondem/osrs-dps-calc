@@ -33,6 +33,7 @@ import { ComputeBasicRequest, ComputeReverseRequest, WorkerRequestType } from '@
 import { getMonsters, INITIAL_MONSTER_INPUTS } from '@/lib/Monsters';
 import { availableEquipment, calculateEquipmentBonusesFromGear } from '@/lib/Equipment';
 import { BankData, getOwnedEquipmentIds, withAliasVariants } from '@/lib/Bank';
+import { Backup } from '@/lib/Backup';
 import { resolveSavedSetupEquipment, savedSetupFromPlayer } from '@/lib/SavedSetups';
 import {
   AutoBuffsConfig, autoBuffStyleFor, DEFAULT_AUTO_BUFFS_CONFIG, getRaid, withAutoBuffPotions, withAutoBuffPrayers,
@@ -563,18 +564,40 @@ class GlobalState implements State {
 
   loadPreferences() {
     localforage.getItem('dps-calc-prefs').then((v) => {
-      if (!v) return;
-      // Older versions stored a single melee prayer choice instead of the full auto buffs config
-      const { autoBuffsMeleePrayer, ...prefs } = v as Partial<Preferences> & { autoBuffsMeleePrayer?: Prayer };
-      const config = { ...DEFAULT_AUTO_BUFFS_CONFIG, ...prefs.autoBuffsConfig };
-      if (autoBuffsMeleePrayer !== undefined && !prefs.autoBuffsConfig) {
-        config.melee = { ...config.melee, prayers: [autoBuffsMeleePrayer] };
-      }
-      this.updatePreferences({ ...prefs, autoBuffsConfig: config });
+      if (v) this.applyStoredPreferences(v as Partial<Preferences>);
     }).catch((e) => {
       console.error(e);
       // TODO maybe some handling here
     });
+  }
+
+  /**
+   * Applies saved preferences, from storage or a backup, upgrading ones saved by older versions.
+   */
+  applyStoredPreferences(stored: Partial<Preferences>) {
+    // Older versions stored a single melee prayer choice instead of the full auto buffs config
+    const { autoBuffsMeleePrayer, ...prefs } = stored as Partial<Preferences> & { autoBuffsMeleePrayer?: Prayer };
+    const config = { ...DEFAULT_AUTO_BUFFS_CONFIG, ...prefs.autoBuffsConfig };
+    if (autoBuffsMeleePrayer !== undefined && !prefs.autoBuffsConfig) {
+      config.melee = { ...config.melee, prayers: [autoBuffsMeleePrayer] };
+    }
+    this.updatePreferences({ ...prefs, autoBuffsConfig: config });
+  }
+
+  /**
+   * Replaces the settings, saved setups and (optionally) bank with those from a backup.
+   */
+  importBackup(backup: Backup, includeBank: boolean) {
+    this.applyStoredPreferences(backup.prefs);
+    this.updateCustomSettings({
+      hiddenItemIds: [], itemTags: [], savedSetups: [], hiddenPresets: [], ...backup.custom,
+    });
+    if (includeBank && backup.bank) {
+      this.setBank(backup.bank);
+    } else if (!this.bank) {
+      // The backup's "only show items in my bank" means nothing without a bank here
+      this.updatePreferences({ bankOwnedOnly: false });
+    }
   }
 
   loadBank() {

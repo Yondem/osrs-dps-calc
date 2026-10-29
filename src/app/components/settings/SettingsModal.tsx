@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import {
-  IconBuildingBank, IconChartBar, IconDeviceFloppy, IconEyeOff, IconFlask, IconList, IconSettings, IconTag,
+  IconArrowsExchange, IconBuildingBank, IconChartBar, IconDeviceFloppy, IconEyeOff, IconFlask, IconList, IconSettings, IconTag,
 } from '@tabler/icons-react';
 import { useStore } from '@/state';
 import Modal from '@/app/components/generic/Modal';
@@ -12,6 +12,7 @@ import FilteredItemsSection from '@/app/components/settings/FilteredItemsSection
 import BankSection from '@/app/components/settings/BankSection';
 import AutoBuffsSection from '@/app/components/settings/AutoBuffsSection';
 import GraphsSection from '@/app/components/settings/GraphsSection';
+import BackupSection from '@/app/components/settings/BackupSection';
 
 const SECTIONS = [
   {
@@ -34,6 +35,9 @@ const SECTIONS = [
   },
   {
     key: 'bank', label: 'Bank', Icon: IconBuildingBank, Component: BankSection,
+  },
+  {
+    key: 'backup', label: 'Export / import', Icon: IconArrowsExchange, Component: BackupSection,
   },
 ];
 
