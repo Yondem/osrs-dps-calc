@@ -6,6 +6,8 @@ import power from '@/public/img/misc/power.webp';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/state';
 
+const REPO_URL = 'https://github.com/Yondem/osrs-dps-calc';
+
 const Footer: React.FC = observer(() => {
   const store = useStore();
   const { manualMode } = store.prefs;
@@ -17,22 +19,27 @@ const Footer: React.FC = observer(() => {
       <div className="max-w-7xl mx-auto flex gap-4 justify-between flex-wrap">
         <div className="flex gap-2 items-center">
           <div>
+            Based on the
+            {' '}
+            <a href="https://github.com/weirdgloop/osrs-dps-calc" target="_blank">OSRS Wiki DPS Calculator</a>
+            {' '}
             &copy;
             {' '}
             {new Date().getFullYear()}
             {' '}
             <a href="https://weirdgloop.org" target="_blank">Weird Gloop</a>
+            , modified by Vind
           </div>
           <a
             className="flex border rounded-full p-0.5 border-gray-400"
-            href="https://github.com/weirdgloop/osrs-dps-calc"
+            href={REPO_URL}
             target="_blank"
             aria-label="Visit the GitHub repo"
           >
             <IconBrandGithub size={15} />
           </a>
           {process.env.GIT_SHA && (
-            <a href={`https://github.com/weirdgloop/osrs-dps-calc/tree/${process.env.GIT_SHA}`} target="_blank">
+            <a href={`${REPO_URL}/tree/${process.env.GIT_SHA}`} target="_blank">
               {`${process.env.GIT_SHA_SHORT}${process.env.GIT_DIRTY === 'true' ? '*' : ''}`}
             </a>
           )}
@@ -56,11 +63,7 @@ const Footer: React.FC = observer(() => {
           {' '}
           &#183;
           {' '}
-          <a href="https://weirdgloop.org/privacy" target="_blank">Privacy</a>
-          {' '}
-          &#183;
-          {' '}
-          <a href="https://weirdgloop.org/terms" target="_blank">Terms</a>
+          Your data stays in your browser
           {' '}
           &#183;
           {' '}

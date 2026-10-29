@@ -1,0 +1,66 @@
+name: Deploy to GitHub Pages
+
+# Builds the calculator as a static site and publishes it with GitHub Pages, along with the item and monster images in
+# cdn/, so visitors never load them from the wiki's servers.
+#
+# Actions are pinned to full commit SHAs so a moved tag can't change what runs here.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Nothing needs write access except the deploy job, which gets it below
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.x'
+          cache: 'yarn'
+      - run: yarn install --immutable
+      - run: yarn test
+      - id: pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Build
+        run: yarn build
+        env:
+          # base_path is /osrs-dps-calc on github.io, or empty with a custom domain
+          NEXT_PUBLIC_BASE_URL: ${{ steps.pages.outputs.origin }}
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          NEXT_PUBLIC_CDN_URL: ${{ steps.pages.outputs.base_path }}/cdn
+          NEXT_PUBLIC_SELF_HOSTED: 'true'
+      - name: Add images
+        run: |
+          mkdir -p out/cdn
+          cp -r cdn/equipment cdn/monsters out/cdn/
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -156,7 +156,11 @@ export const calculateCombatLevel = (s: PlayerSkills) => {
 
 export const getWikiImage = (filename: string) => `https://oldschool.runescape.wiki/images/${filename.replaceAll(' ', '_')}?11111`;
 
-export const getCdnImage = (filename: string) => `https://tools.runescape.wiki/osrs-dps/cdn/${filename}`;
+// Self-hosted builds serve cdn/ next to the site instead of loading it from the wiki (see .github/workflows/pages.yml)
+const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || 'https://tools.runescape.wiki/osrs-dps/cdn';
+
+// Filenames are encoded since some contain characters like % that aren't valid in a URL as-is
+export const getCdnImage = (filename: string) => `${CDN_URL}/${filename.split('/').map(encodeURIComponent).join('/')}`;
 
 export const isDevServer = () => process.env.NODE_ENV === 'development';
 

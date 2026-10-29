@@ -21,18 +21,11 @@ interface IWikiSyncButtonProps {
 const WikiSyncButton: React.FC<IWikiSyncButtonProps> = observer((props) => {
   const { getToggleButtonProps } = props;
 
-  const onButtonClick = useCallback(async () => {
-    // simple logging of button press for usage stats
-    fetch('https://chisel.weirdgloop.org/t/dps/rl');
-  }, []);
-
   return (
     <>
       {/* eslint-disable react/jsx-props-no-spreading */}
       <button
-        {...getToggleButtonProps({
-          onClick: onButtonClick,
-        }) as object}
+        {...getToggleButtonProps() as object}
         type="button"
         className="transition-all hover:scale-105 hover:text-white border border-body-500 bg-[#3e2816] p-0.5 rounded-md dark:bg-dark-300 dark:border-dark-200 flex items-center gap-1 w-8"
         data-tooltip-id="tooltip"

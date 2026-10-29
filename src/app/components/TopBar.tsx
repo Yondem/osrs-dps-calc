@@ -26,16 +26,19 @@ const TopBar: React.FC = observer(() => {
           </div>
           <div className="block ml-6">
             <div className="flex text-body-200 text-xs font-medium space-x-2">
-              <button
-                type="button"
-                className="transition-all hover:scale-105 hover:text-white border border-body-500 bg-[#3e2816] py-1.5 px-2.5 rounded-md dark:bg-dark-300 dark:border-dark-200 flex items-center gap-1"
-                onClick={() => {
-                  store.updateUIState({ showShareModal: true });
-                }}
-              >
-                <IconShare2 size={20} aria-label="Share loadout" />
-                <div className="hidden md:block">Share loadout</div>
-              </button>
+              {/* Share links are stored on the wiki's server, so self-hosted builds leave them out */}
+              {!process.env.NEXT_PUBLIC_SELF_HOSTED && (
+                <button
+                  type="button"
+                  className="transition-all hover:scale-105 hover:text-white border border-body-500 bg-[#3e2816] py-1.5 px-2.5 rounded-md dark:bg-dark-300 dark:border-dark-200 flex items-center gap-1"
+                  onClick={() => {
+                    store.updateUIState({ showShareModal: true });
+                  }}
+                >
+                  <IconShare2 size={20} aria-label="Share loadout" />
+                  <div className="hidden md:block">Share loadout</div>
+                </button>
+              )}
               <button
                 type="button"
                 className="transition-all hover:scale-105 hover:text-white border border-body-500 bg-[#3e2816] py-1.5 px-2 rounded-md dark:bg-dark-300 dark:border-dark-200 flex items-center"
