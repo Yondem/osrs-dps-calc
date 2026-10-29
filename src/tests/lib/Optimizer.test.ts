@@ -133,6 +133,57 @@ describe('Optimizer', () => {
     expect(results[0].equipment.ammo).toBeNull();
   });
 
+  test('tries every dart for a blowpipe when none are in the pool', () => {
+    // Darts loaded into a blowpipe aren't in a bank export, and the blazing blowpipe is a toxic blowpipe variant
+    const monster = getTestMonster('Archive Guardian', 'Flying', { inputs: { defenceReductions: { dwh: 2 } } });
+    const results = optimize({
+      player: getTestPlayer(monster),
+      monster,
+      poolIds: [findEquipment('Blazing blowpipe', 'Charged').id],
+      styles: ['ranged'],
+      buffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
+      resultsPerStyle: 10,
+    });
+
+    expect(results[0].equipment.weapon?.name).toBe('Toxic blowpipe');
+    expect(results.map((r) => r.equipment.weapon?.itemVars?.blowpipeDartName)).toContain('Dragon dart');
+  });
+
+  test("never uses novelty weapons that can't attack (greegrees)", () => {
+    // Their attack speed of -1 used to give nonsense DPS, beating real weapons
+    const monster = getTestMonster('Archive Guardian', 'Grounded');
+    const results = optimize({
+      player: getTestPlayer(monster),
+      monster,
+      poolIds: items('Ninja monkey greegree (small)', 'Abyssal whip', "Inquisitor's great helm", "Inquisitor's hauberk", "Inquisitor's plateskirt").map((eq) => eq.id),
+      styles: ['melee'],
+      buffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
+      resultsPerStyle: 10,
+    });
+
+    expect(results.map((r) => r.equipment.weapon?.name)).toEqual(['Abyssal whip']);
+  });
+
+  test('screens weapons with the armour set they need (bowfa and crystal)', () => {
+    // With the best-stats armour, bowfa screens well below the top weapons and used to never get refined
+    const monster = getTestMonster('The Leviathan', 'Post-quest');
+    const results = optimize({
+      player: getTestPlayer(monster),
+      monster,
+      poolIds: availableEquipment.filter(isSearchableEquipment).map((eq) => eq.id),
+      styles: ['ranged'],
+      buffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
+      resultsPerStyle: 8,
+    });
+
+    const bowfa = results.find((r) => r.equipment.weapon?.name.startsWith('Bow of Faerdhinen'));
+    expect(bowfa?.equipment.body?.name).toBe('Crystal body');
+    expect(bowfa?.equipment.legs?.name).toBe('Crystal legs');
+    // Each weapon is listed once, even a blowpipe with several darts
+    const weapons = results.map((r) => r.equipment.weapon?.name);
+    expect(new Set(weapons).size).toBe(weapons.length);
+  });
+
   test('handles every searchable item in reasonable time', () => {
     const monster = getTestMonster('Abyssal demon');
     const pool = availableEquipment.filter(isSearchableEquipment).map((eq) => eq.id);

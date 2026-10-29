@@ -30,6 +30,7 @@ export interface OptimizeOptions {
   player: Player; // the loadout to start from: skills, buffs and spell are kept
   monster: Monster;
   poolIds: number[]; // equipment the search may use
+  pool?: EquipmentPiece[]; // an already resolved pool (see resolvePool), used instead of poolIds
   styles: AutoBuffStyle[]; // combat styles to search
   buffsConfig: AutoBuffsConfig | null; // prayers and potions per style, or null to keep the loadout's own
   resultsPerStyle?: number;
@@ -50,8 +51,8 @@ export interface OptimizeResult {
 
 export type ProgressFn = (done: number, total: number) => void;
 
-type ArmourSlot = Exclude<keyof PlayerEquipment, 'weapon'>;
-const ARMOUR_SLOTS = EQUIPMENT_SLOTS.filter((s) => s !== 'weapon') as ArmourSlot[];
+export type ArmourSlot = Exclude<keyof PlayerEquipment, 'weapon'>;
+export const ARMOUR_SLOTS = EQUIPMENT_SLOTS.filter((s) => s !== 'weapon') as ArmourSlot[];
 
 const SPELL_STANCES = ['Autocast', 'Defensive Autocast', 'Manual Cast'];
 const FALLBACK_SPELLS = ['Fire Surge', 'Ice Barrage'];
@@ -97,13 +98,13 @@ const hasSpecialEffect = (eq: EquipmentPiece, style: PlayerCombatStyle): boolean
   return SPECIAL_EFFECT_ITEMS.any.test(eq.name) || (family !== null && SPECIAL_EFFECT_ITEMS[family].test(eq.name));
 };
 
-// Not available on normal accounts
-const EXCLUDED_ITEMS = /\((Deadman Mode|Last Man Standing|beta|historical)\)/;
+// Not available on normal accounts, or only inside a minigame
+const EXCLUDED_ITEMS = /\((Deadman Mode|Last Man Standing|beta|historical)\)|^(Barbed|Blunt|Bullet|Field) arrow$/;
 
 /**
  * Armour sets whose effect only applies to the whole set, tried together during refinement.
  */
-const ARMOUR_SETS: Partial<Record<ArmourSlot, RegExp>>[] = [
+export const ARMOUR_SETS: Partial<Record<ArmourSlot, RegExp>>[] = [
   ...['melee', 'ranger', 'mage'].flatMap((helm) => [
     {
       head: new RegExp(`^Void ${helm} helm`, 'i'), body: /^Void knight top/i, legs: /^Void knight robe/i, hands: /^Void knight gloves/i,
@@ -133,6 +134,24 @@ const ARMOUR_SETS: Partial<Record<ArmourSlot, RegExp>>[] = [
   })),
 ];
 
+const setWithHelm = (helm: string) => ARMOUR_SETS.find((set) => set.head?.source.startsWith(`^${helm}`))!;
+
+/**
+ * Armour sets whose effect needs a particular weapon. With the quick "best stats" armour these weapons look much worse
+ * than they are, so they're also screened wearing their set.
+ */
+export const WEAPON_SETS: { weapon: RegExp, set: Partial<Record<ArmourSlot, RegExp>> }[] = [
+  { weapon: /^(Crystal bow|Bow of Faerdhinen)/i, set: setWithHelm('Crystal helm') },
+  { weapon: /^(Tzhaar-ket-em|Tzhaar-ket-om|Toktz-xil-ak|Toktz-xil-ek|Toktz-mej-tal)/i, set: setWithHelm('Obsidian helmet') },
+  { weapon: /^Dharok's greataxe/i, set: setWithHelm("Dharok's helm") },
+  { weapon: /^Verac's flail/i, set: setWithHelm("Verac's helm") },
+  { weapon: /^Karil's crossbow/i, set: setWithHelm("Karil's coif") },
+  { weapon: /^Ahrim's staff/i, set: setWithHelm("Ahrim's hood") },
+  { weapon: /^Dual macuahuitl/i, set: setWithHelm('Blood Moon helm') },
+  { weapon: /^Eclipse atlatl/i, set: setWithHelm('Eclipse Moon helm') },
+  { weapon: /^Blue Moon spear/i, set: setWithHelm('Blue Moon helm') },
+];
+
 /**
  * The stats that matter for a style's damage: attack bonus and strength bonus.
  */
@@ -156,7 +175,7 @@ const relevantStats = (eq: EquipmentPiece, style: PlayerCombatStyle): number[] =
 /**
  * Drops items that another item beats or ties on every relevant stat, unless they have a special effect.
  */
-const withoutDominated = (items: EquipmentPiece[], style: PlayerCombatStyle): EquipmentPiece[] => {
+export const withoutDominated = (items: EquipmentPiece[], style: PlayerCombatStyle): EquipmentPiece[] => {
   const stats = items.map((eq) => relevantStats(eq, style));
   return items.filter((eq, i) => hasSpecialEffect(eq, style) || !items.some((_, j) => {
     if (i === j) return false;
@@ -171,7 +190,7 @@ const withoutDominated = (items: EquipmentPiece[], style: PlayerCombatStyle): Eq
  * A rough "how good is this item for this style" score, only used to pick starting gear and to trim large slots.
  * The real calculator decides everything else.
  */
-const statScore = (eq: EquipmentPiece, style: PlayerCombatStyle): number => {
+export const statScore = (eq: EquipmentPiece, style: PlayerCombatStyle): number => {
   const o = eq.offensive;
   const b = eq.bonuses;
   switch (style.type) {
@@ -188,19 +207,43 @@ const statScore = (eq: EquipmentPiece, style: PlayerCombatStyle): number => {
   }
 };
 
-const requiresAmmo = (weapon: EquipmentPiece) => ammoApplicability(weapon.id, undefined) === AmmoApplicability.INVALID;
+export const requiresAmmo = (weapon: EquipmentPiece) => ammoApplicability(weapon.id, undefined) === AmmoApplicability.INVALID;
 
 type SlotOptions = (EquipmentPiece | null)[];
 
-const isWearingAll = (gear: PlayerEquipment, pieces: Partial<PlayerEquipment>) => Object.entries(pieces)
+export const isWearingAll = (gear: PlayerEquipment, pieces: Partial<PlayerEquipment>) => Object.entries(pieces)
   .every(([slot, eq]) => gear[slot as ArmourSlot]?.id === eq?.id);
 
-interface Candidate {
+export interface Candidate {
   weapon: EquipmentPiece;
   style: PlayerCombatStyle;
   spell: Spell | null;
   family: AutoBuffStyle;
 }
+
+/**
+ * The items of a pool that the search actually tries against a monster.
+ */
+export const resolvePool = (poolIds: number[], monster: Monster): EquipmentPiece[] => {
+  // Ornament kits, recolours and locked versions work the same, so only the base item of each is tried
+  const ids = new Set(poolIds.map((id) => getCanonicalItemId(id)));
+  // Versions of the same item (Barrows degradation, charged/uncharged, ...) differ only in stats, so only the
+  // strongest is kept
+  const byName = new Map<string, EquipmentPiece>();
+  const inGauntlet = [...GAUNTLET_MONSTER_IDS, ...CORRUPTED_GAUNTLET_MONSTER_IDS].includes(monster.id);
+  const gauntletOnly = new Set([...GAUNTLET_EQUIPMENT_IDS, ...CORRUPTED_GAUNTLET_EQUIPMENT_IDS]);
+  const total = (e: EquipmentPiece) => Object.values(e.offensive).reduce((a, b) => a + b, 0)
+    + Object.values(e.bonuses).reduce((a, b) => a + b, 0);
+  for (const eq of availableEquipment) {
+    if (!ids.has(eq.id) || EXCLUDED_ITEMS.test(eq.name)) continue;
+    // Greegrees, crates and other novelty "weapons" have no attack speed and break the DPS formula
+    if (eq.slot === 'weapon' && eq.speed <= 0) continue;
+    if (gauntletOnly.has(eq.id) && !inGauntlet) continue;
+    const existing = byName.get(eq.name);
+    if (!existing || total(eq) > total(existing)) byName.set(eq.name, eq);
+  }
+  return [...byName.values()];
+};
 
 export class Optimizer {
   private readonly opts: OptimizeOptions;
@@ -219,22 +262,7 @@ export class Optimizer {
 
   constructor(opts: OptimizeOptions) {
     this.opts = opts;
-    // Ornament kits, recolours and locked versions work the same, so only the base item of each is tried
-    const ids = new Set(opts.poolIds.map((id) => getCanonicalItemId(id)));
-    // Versions of the same item (Barrows degradation, charged/uncharged, ...) differ only in stats, so only the
-    // strongest is kept
-    const byName = new Map<string, EquipmentPiece>();
-    const inGauntlet = [...GAUNTLET_MONSTER_IDS, ...CORRUPTED_GAUNTLET_MONSTER_IDS].includes(opts.monster.id);
-    const gauntletOnly = new Set([...GAUNTLET_EQUIPMENT_IDS, ...CORRUPTED_GAUNTLET_EQUIPMENT_IDS]);
-    const total = (e: EquipmentPiece) => Object.values(e.offensive).reduce((a, b) => a + b, 0)
-      + Object.values(e.bonuses).reduce((a, b) => a + b, 0);
-    for (const eq of availableEquipment) {
-      if (!ids.has(eq.id) || EXCLUDED_ITEMS.test(eq.name)) continue;
-      if (gauntletOnly.has(eq.id) && !inGauntlet) continue;
-      const existing = byName.get(eq.name);
-      if (!existing || total(eq) > total(existing)) byName.set(eq.name, eq);
-    }
-    this.pool = [...byName.values()];
+    this.pool = opts.pool ?? resolvePool(opts.poolIds, opts.monster);
     this.bySlot = new Map();
     for (const eq of this.pool) {
       this.bySlot.set(eq.slot, [...(this.bySlot.get(eq.slot) || []), eq]);
@@ -276,7 +304,7 @@ export class Optimizer {
     return Number.isFinite(dps) ? dps : 0;
   }
 
-  private result(gear: PlayerEquipment, c: Candidate): OptimizeResult {
+  public result(gear: PlayerEquipment, c: Candidate): OptimizeResult {
     const player = this.buildPlayer(gear, c);
     const calc = new PlayerVsNPCCalc(player, this.opts.monster);
     return {
@@ -317,7 +345,7 @@ export class Optimizer {
     return [null, ...withoutDominated(items, c.style)];
   }
 
-  private startingGear(c: Candidate): PlayerEquipment {
+  public startingGear(c: Candidate): PlayerEquipment {
     const gear = { weapon: c.weapon } as PlayerEquipment;
     for (const slot of ARMOUR_SLOTS) {
       // Weapons that don't load ammo get nothing from the ammo slot's ranged strength, so it starts empty
@@ -338,43 +366,82 @@ export class Optimizer {
   }
 
   /**
-   * Every weapon (with each loadable dart, for blowpipes) in every combat style and spell it can use.
+   * A blowpipe once per dart in the pool it can load, or any other weapon as it is. Darts loaded into a blowpipe
+   * don't show up in a bank export, so with none in the pool every dart it can load is tried.
    */
-  public candidates(): Candidate[] {
-    const weapons = (this.bySlot.get('weapon') || []).flatMap((w) => {
-      if (!BLOWPIPE_IDS.includes(w.id)) return [w];
-      return DARTS
-        .filter((d) => this.pool.some((eq) => eq.id === d.id) && canBlowpipeUseDart(w.name, d.name))
-        .map((d) => ({ ...w, itemVars: { ...w.itemVars, blowpipeDartName: d.name, blowpipeDartId: d.id } }));
-    });
+  public weaponVariants(w: EquipmentPiece): EquipmentPiece[] {
+    if (!BLOWPIPE_IDS.includes(w.id)) return [w];
+    const loadable = DARTS.filter((d) => canBlowpipeUseDart(w.name, d.name));
+    const inPool = loadable.filter((d) => this.pool.some((eq) => eq.id === d.id));
+    return (inPool.length > 0 ? inPool : loadable)
+      .map((d) => ({ ...w, itemVars: { ...w.itemVars, blowpipeDartName: d.name, blowpipeDartId: d.id } }));
+  }
 
+  /**
+   * A weapon in every searched combat style and spell it can use.
+   */
+  public candidatesFor(weapon: EquipmentPiece): Candidate[] {
     const result: Candidate[] = [];
-    for (const weapon of weapons) {
-      const styles = getCombatStylesForCategory(weapon.category);
-      const hasAutocast = styles.some((s) => s.stance === 'Autocast');
-      for (const style of styles) {
-        const family = styleFamily(style);
-        if (!family || !this.opts.styles.includes(family)) continue;
+    const styles = getCombatStylesForCategory(weapon.category);
+    const hasAutocast = styles.some((s) => s.stance === 'Autocast');
+    for (const style of styles) {
+      const family = styleFamily(style);
+      if (!family || !this.opts.styles.includes(family)) continue;
 
-        if (style.stance && SPELL_STANCES.includes(style.stance)) {
-          // Only weapons that can autocast (staves, wands) are used for spells; one spell stance is enough
-          if (!hasAutocast || style.stance !== 'Autocast') continue;
-          for (const spell of this.spells) {
-            result.push({
-              weapon, style, spell, family,
-            });
-          }
-        } else {
+      if (style.stance && SPELL_STANCES.includes(style.stance)) {
+        // Only weapons that can autocast (staves, wands) are used for spells; one spell stance is enough
+        if (!hasAutocast || style.stance !== 'Autocast') continue;
+        for (const spell of this.spells) {
           result.push({
-            weapon, style, spell: null, family,
+            weapon, style, spell, family,
           });
         }
+      } else {
+        result.push({
+          weapon, style, spell: null, family,
+        });
       }
     }
     return result;
   }
 
-  private refine(start: PlayerEquipment, c: Candidate): { gear: PlayerEquipment, candidate: Candidate, dps: number } {
+  /**
+   * Every weapon (with each loadable dart, for blowpipes) in every combat style and spell it can use.
+   */
+  public candidates(): Candidate[] {
+    return (this.bySlot.get('weapon') || [])
+      .flatMap((w) => this.weaponVariants(w))
+      .flatMap((w) => this.candidatesFor(w));
+  }
+
+  /**
+   * The strongest version of each piece of an armour set, or null if the pool is missing a piece.
+   */
+  public setPieces(set: Partial<Record<ArmourSlot, RegExp>>, c: Candidate): Partial<PlayerEquipment> | null {
+    const pieces = Object.entries(set).map(([slot, pattern]) => {
+      const matches = (this.bySlot.get(slot) || []).filter((eq) => pattern!.test(eq.name));
+      return [slot, matches.sort((a, b) => statScore(b, c.style) - statScore(a, c.style))[0]] as const;
+    });
+    return pieces.every(([, eq]) => eq) ? Object.fromEntries(pieces) : null;
+  }
+
+  /**
+   * The gear a weapon is screened with: the starting gear, or its armour set if the weapon needs one and that's better.
+   */
+  public screeningGear(c: Candidate): { gear: PlayerEquipment, dps: number } {
+    const start = this.startingGear(c);
+    let best = { gear: start, dps: this.evaluate(start, c) };
+    for (const { weapon, set } of WEAPON_SETS) {
+      const pieces = weapon.test(c.weapon.name) ? this.setPieces(set, c) : null;
+      if (!pieces) continue;
+      const gear = { ...start, ...pieces };
+      const dps = this.evaluate(gear, c);
+      if (dps > best.dps) best = { gear, dps };
+    }
+    return best;
+  }
+
+  public refine(start: PlayerEquipment, c: Candidate): { gear: PlayerEquipment, candidate: Candidate, dps: number } {
     let gear = start;
     let candidate = c;
     let best = this.evaluate(gear, candidate);
@@ -393,15 +460,8 @@ export class Optimizer {
     const sameFamilyStyles = getCombatStylesForCategory(c.weapon.category)
       .filter((s) => styleFamily(s) === c.family && (c.spell ? s.stance === c.style.stance : !SPELL_STANCES.includes(s.stance || '')));
 
-    // Each armour set the pool has every piece of, using the strongest version of each piece
-    const setMoves: Partial<PlayerEquipment>[] = [];
-    for (const set of ARMOUR_SETS) {
-      const pieces = Object.entries(set).map(([slot, pattern]) => {
-        const matches = (this.bySlot.get(slot) || []).filter((eq) => pattern!.test(eq.name));
-        return [slot, matches.sort((a, b) => statScore(b, c.style) - statScore(a, c.style))[0]] as const;
-      });
-      if (pieces.every(([, eq]) => eq)) setMoves.push(Object.fromEntries(pieces));
-    }
+    // Each armour set the pool has every piece of
+    const setMoves = ARMOUR_SETS.map((set) => this.setPieces(set, c)).filter(isDefined);
 
     for (let pass = 0; pass < 5; pass++) {
       let improved = false;
@@ -429,15 +489,16 @@ export class Optimizer {
   }
 
   public run(onProgress?: ProgressFn): OptimizeResult[] {
-    const { resultsPerStyle = 3, weaponsPerStyle = 5 } = this.opts;
+    const { resultsPerStyle = 3, weaponsPerStyle = 8 } = this.opts;
     const candidates = this.candidates();
 
-    // 1. Screening: the best style/spell per weapon, scored with simple starting gear
-    const screened = new Map<string, { candidate: Candidate, dps: number }>();
+    // 1. Screening: the best style/spell per weapon, scored with simple starting gear (or the weapon's armour set)
+    const screened = new Map<string, { candidate: Candidate, gear: PlayerEquipment, dps: number }>();
     candidates.forEach((c, i) => {
-      const dps = this.evaluate(this.startingGear(c), c);
-      const key = `${c.family}:${c.weapon.id}:${c.weapon.itemVars?.blowpipeDartId ?? ''}`;
-      if (!screened.has(key) || dps > screened.get(key)!.dps) screened.set(key, { candidate: c, dps });
+      const { gear, dps } = this.screeningGear(c);
+      // One entry per weapon: a blowpipe keeps its best dart, so darts don't crowd other weapons out of the shortlist
+      const key = `${c.family}:${c.weapon.id}`;
+      if (!screened.has(key) || dps > screened.get(key)!.dps) screened.set(key, { candidate: c, gear, dps });
       if (i % 50 === 0) onProgress?.(i, candidates.length * 2);
     });
 
@@ -447,9 +508,9 @@ export class Optimizer {
       .sort((a, b) => b.dps - a.dps)
       .slice(0, weaponsPerStyle));
 
-    const results: OptimizeResult[] = shortlist.map(({ candidate }, i) => {
+    const results: OptimizeResult[] = shortlist.map(({ candidate, gear }, i) => {
       onProgress?.(candidates.length + Math.round(((i + 1) / shortlist.length) * candidates.length), candidates.length * 2);
-      const refined = this.refine(this.startingGear(candidate), candidate);
+      const refined = this.refine(gear, candidate);
       return this.result(refined.gear, refined.candidate);
     });
 

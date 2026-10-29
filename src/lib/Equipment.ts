@@ -57,6 +57,13 @@ export const isSearchableEquipment = (eq: EquipmentPiece): boolean => !((
   || eq.name.match(/(Fine mesh net|Wilderness champion amulet|\(Wilderness Wars)/)
   || eq.name.match(/^Crystal .* \(i\)$/));
 
+/**
+ * Items only obtainable through PvP (Bounty Hunter rewards, revenant/Ancient Warriors' gear, Deadman Mode copies).
+ * They're never suggested as something to get, but ones you own can still be used.
+ */
+export const isPvpOnlyEquipment = (eq: EquipmentPiece): boolean => /\((bh|wrapped|deadman( mode)?)\)/i.test(eq.name)
+  || /^(Corrupted )?(Vesta's|Statius's|Morrigan's|Zuriel's) /i.test(eq.name);
+
 const findDart = (name: string): EquipmentPiece | undefined => {
   const eq = availableEquipment.find((e) => e.name === name);
   if (!eq) {
@@ -106,6 +113,12 @@ export const canBlowpipeUseDart = (blowpipeName: string, dartName: string): bool
   const dartTier = DART_TIER[dartName];
   return maxTier === undefined || dartTier === undefined || dartTier <= maxTier;
 };
+
+/**
+ * The IDs of the items worn in a loadout, including the dart loaded into a blowpipe.
+ */
+export const wornItemIds = (gear: PlayerEquipment): number[] => Object.values(gear)
+  .flatMap((eq) => (eq ? [eq.id, ...(eq.itemVars?.blowpipeDartId ? [eq.itemVars.blowpipeDartId] : [])] : []));
 
 /**
  * A map of base item ID -> variant item IDs for items that are identical in function. This includes

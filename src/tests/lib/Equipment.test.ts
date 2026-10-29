@@ -1,6 +1,6 @@
 import { findEquipment, getTestMonster, getTestPlayer } from '@/tests/utils/TestUtils';
 import { describe, expect, test } from '@jest/globals';
-import { calculateEquipmentBonusesFromGear } from '@/lib/Equipment';
+import { calculateEquipmentBonusesFromGear, isPvpOnlyEquipment } from '@/lib/Equipment';
 
 describe('calculateEquipmentBonusesFromGear', () => {
   describe("with Dizana's quiver", () => {
@@ -117,5 +117,25 @@ describe('calculateEquipmentBonusesFromGear', () => {
         expect(bonuses.bonuses.ranged_str).toStrictEqual(38);
       });
     });
+  });
+});
+
+describe('isPvpOnlyEquipment', () => {
+  test('flags Bounty Hunter, revenant and Deadman items', () => {
+    for (const [name, version] of [
+      ["Zuriel's robe top (bh)", 'Activated'], ['Barrows gloves (wrapped)', ''], ["Corrupted morrigan's coif (bh)", 'Activated'],
+      ['Crystal body (deadman)', 'Active'], ['Voidwaker (Deadman)', ''], ['Dragon mace (bh)', ''],
+    ]) {
+      expect([name, isPvpOnlyEquipment(findEquipment(name, version))]).toEqual([name, true]);
+    }
+  });
+
+  test('keeps normal items, including imbues from PvP minigames and wilderness boss drops', () => {
+    for (const [name, version] of [
+      ['Barrows gloves', ''], ['Archers ring (i)', "Emir's Arena"], ['Slayer helmet (i)', 'Soul Wars'], ["Craw's bow", 'Charged'],
+      ['Crystal body', 'Active'], ['Voidwaker', ''],
+    ]) {
+      expect([name, isPvpOnlyEquipment(findEquipment(name, version))]).toEqual([name, false]);
+    }
   });
 });

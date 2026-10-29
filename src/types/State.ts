@@ -3,7 +3,7 @@ import { EquipmentPiece, Player, PlayerEquipment } from '@/types/Player';
 import { PlayerCombatStyle } from '@/types/PlayerCombatStyle';
 import { Prayer } from '@/enums/Prayer';
 import Potion from '@/enums/Potion';
-import type { AutoBuffsConfig } from '@/lib/AutoBuffs';
+import type { AutoBuffsConfig, AutoBuffStyle } from '@/lib/AutoBuffs';
 import { Monster } from '@/types/Monster';
 import UserIssueType from '@/enums/UserIssueType';
 import { DetailEntry } from '@/lib/CalcDetails';
@@ -43,6 +43,20 @@ export interface Preferences {
   bankOwnedOnly: boolean; // only show equipment from the imported bank in the equipment search
   autoBuffs: boolean; // turn on potions and prayers when a weapon is equipped
   autoBuffsConfig: AutoBuffsConfig; // which potions and prayers auto buffs turns on
+  upgradeFinderTargets: UpgradeFinderTarget[]; // the monster list of the upgrade finder
+  upgradeFinderList: string; // which saved list that is (a preset's label or "Custom"), or empty if not chosen yet
+  upgradeFinderSaved: Record<string, UpgradeFinderTarget[]>; // every saved list, so switching keeps your changes
+}
+
+/**
+ * A monster in the upgrade finder's list, e.g. one boss of a raid.
+ */
+export interface UpgradeFinderTarget {
+  id: number;
+  version: string;
+  weight: number; // kills per run
+  inputs?: Partial<Monster['inputs']>; // party size, raid level, phase, ...
+  styles?: AutoBuffStyle[]; // combat styles you can use on it, or all of them if missing
 }
 
 /**

@@ -240,6 +240,9 @@ class GlobalState implements State {
     bankOwnedOnly: false,
     autoBuffs: false,
     autoBuffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
+    upgradeFinderTargets: [],
+    upgradeFinderList: '',
+    upgradeFinderSaved: {},
   };
 
   /**

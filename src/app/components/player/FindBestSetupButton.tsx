@@ -6,7 +6,9 @@ import { IconPlus, IconSparkles } from '@tabler/icons-react';
 import { useStore } from '@/state';
 import Modal from '@/app/components/generic/Modal';
 import Toggle from '@/app/components/generic/Toggle';
-import { availableEquipment, isSearchableEquipment } from '@/lib/Equipment';
+import {
+  availableEquipment, isPvpOnlyEquipment, isSearchableEquipment, wornItemIds,
+} from '@/lib/Equipment';
 import { AUTO_BUFF_STYLES, AutoBuffStyle } from '@/lib/AutoBuffs';
 import { OptimizeResult } from '@/lib/Optimizer';
 import { EQUIPMENT_SLOTS, equipmentDisplayName, toSavedSetupItem } from '@/lib/SavedSetups';
@@ -16,7 +18,7 @@ import { getCdnImage } from '@/utils';
 
 const STYLE_LABELS: { [s in AutoBuffStyle]: string } = { melee: 'Melee', ranged: 'Ranged', magic: 'Magic' };
 
-const resultToSetup = (r: OptimizeResult): SavedSetup => ({
+export const resultToSetup = (r: OptimizeResult): SavedSetup => ({
   id: 'best-setup',
   name: r.equipment.weapon ? equipmentDisplayName(r.equipment.weapon) : 'Best setup',
   equipment: Object.fromEntries(EQUIPMENT_SLOTS.map((slot) => [slot, toSavedSetupItem(r.equipment[slot])])) as SavedSetup['equipment'],
@@ -118,9 +120,10 @@ const FindBestSetupButton: React.FC = observer(() => {
   }, [isOpen]);
 
   const search = async () => {
-    const worn = Object.values(store.player.equipment).filter((eq) => eq).map((eq) => eq!.id);
+    const worn = wornItemIds(store.player.equipment);
     const poolIds = availableEquipment
-      .filter((eq) => (useBank ? ownedEquipmentIds!.has(eq.id) || worn.includes(eq.id) : true))
+      // All items leaves out PvP-only gear, unless you own it
+      .filter((eq) => (useBank || isPvpOnlyEquipment(eq) ? ownedEquipmentIds?.has(eq.id) || worn.includes(eq.id) : true))
       .filter((eq) => isSearchableEquipment(eq) && !hiddenEquipmentIds.has(eq.id))
       .map((eq) => eq.id);
 
@@ -133,6 +136,7 @@ const FindBestSetupButton: React.FC = observer(() => {
       poolIds,
       styles,
       buffsConfig: useAutoBuffs ? toJS(store.prefs.autoBuffsConfig) : null,
+      resultsPerStyle: 5,
     }, setProgress);
     run.current = thisRun;
 
