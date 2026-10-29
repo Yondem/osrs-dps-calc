@@ -55,14 +55,18 @@ export const isSearchableEquipment = (eq: EquipmentPiece): boolean => !((
   || eq.version.match(/^(Broken|Inactive|Locked)$/)
   || eq.name.match(/\((Last Man Standing|historical|beta)\)$/)
   || eq.name.match(/(Fine mesh net|Wilderness champion amulet|\(Wilderness Wars)/)
-  || eq.name.match(/^Crystal .* \(i\)$/));
+  || eq.name.match(/^Crystal .* \(i\)$/)
+  // Emir's Arena gear that only exists inside a match, and the arena's scrapped ornamented rewards
+  || eq.name.match(/^((Elite |Superior )?Calamity (chest|breeches)|Maoma's|Koriff's|Saika's|Wristbands of the Arena)|\(wrapped\)$/i)
+  || eq.name.match(/^(Dragon claws|Bandos tassets|Bandos boots) \(or\)$/));
 
 /**
  * Items only obtainable through PvP (Bounty Hunter rewards, revenant/Ancient Warriors' gear, Deadman Mode copies).
  * They're never suggested as something to get, but ones you own can still be used.
  */
-export const isPvpOnlyEquipment = (eq: EquipmentPiece): boolean => /\((bh|wrapped|deadman( mode)?)\)/i.test(eq.name)
-  || /^(Corrupted )?(Vesta's|Statius's|Morrigan's|Zuriel's) /i.test(eq.name);
+export const isPvpOnlyEquipment = (eq: EquipmentPiece): boolean => /\((bh|deadman( mode)?)\)/i.test(eq.name)
+  || /^(Corrupted )?(Vesta's|Statius's|Morrigan's|Zuriel's) /i.test(eq.name)
+  || eq.name === 'Heavy ballista (or)';
 
 const findDart = (name: string): EquipmentPiece | undefined => {
   const eq = availableEquipment.find((e) => e.name === name);

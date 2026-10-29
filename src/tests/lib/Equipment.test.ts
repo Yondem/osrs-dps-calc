@@ -1,6 +1,6 @@
 import { findEquipment, getTestMonster, getTestPlayer } from '@/tests/utils/TestUtils';
 import { describe, expect, test } from '@jest/globals';
-import { calculateEquipmentBonusesFromGear, isPvpOnlyEquipment } from '@/lib/Equipment';
+import { calculateEquipmentBonusesFromGear, isPvpOnlyEquipment, isSearchableEquipment } from '@/lib/Equipment';
 
 describe('calculateEquipmentBonusesFromGear', () => {
   describe("with Dizana's quiver", () => {
@@ -123,7 +123,7 @@ describe('calculateEquipmentBonusesFromGear', () => {
 describe('isPvpOnlyEquipment', () => {
   test('flags Bounty Hunter, revenant and Deadman items', () => {
     for (const [name, version] of [
-      ["Zuriel's robe top (bh)", 'Activated'], ['Barrows gloves (wrapped)', ''], ["Corrupted morrigan's coif (bh)", 'Activated'],
+      ["Zuriel's robe top (bh)", 'Activated'], ['Heavy ballista (or)', ''], ["Corrupted morrigan's coif (bh)", 'Activated'],
       ['Crystal body (deadman)', 'Active'], ['Voidwaker (Deadman)', ''], ['Dragon mace (bh)', ''],
     ]) {
       expect([name, isPvpOnlyEquipment(findEquipment(name, version))]).toEqual([name, true]);
@@ -136,6 +136,27 @@ describe('isPvpOnlyEquipment', () => {
       ['Crystal body', 'Active'], ['Voidwaker', ''],
     ]) {
       expect([name, isPvpOnlyEquipment(findEquipment(name, version))]).toEqual([name, false]);
+    }
+  });
+});
+
+describe('isSearchableEquipment', () => {
+  test("hides Emir's Arena gear that only exists inside a match", () => {
+    for (const [name, version] of [
+      ["Maoma's great helm", 'Normal'], ["Koriff's coif", 'Normal'], ["Saika's hood", 'Normal'], ['Elite calamity chest', 'Normal'],
+      ['Calamity breeches', 'Normal'], ['Wristbands of the Arena (i)', 'Charged'], ['Barrows gloves (wrapped)', ''], ['Dragon claws (or)', ''],
+      ['Bandos tassets (or)', ''],
+    ]) {
+      expect([name, isSearchableEquipment(findEquipment(name, version))]).toEqual([name, false]);
+    }
+  });
+
+  test("keeps Emir's Arena imbues and other ornamented items", () => {
+    for (const [name, version] of [
+      ['Archers ring (i)', "Emir's Arena"], ['Salve amulet(ei)', "Emir's Arena"], ['Heavy ballista (or)', ''], ['Abyssal whip (or)', ''],
+      ['Bandos tassets', ''], ['Barrows gloves', ''],
+    ]) {
+      expect([name, isSearchableEquipment(findEquipment(name, version))]).toEqual([name, true]);
     }
   });
 });
