@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { cross } from 'd3-array';
 import { findEquipment, getTestMonster, getTestPlayer } from '@/tests/utils/TestUtils';
-import { availableEquipment, isSearchableEquipment } from '@/lib/Equipment';
+import { availableEquipment, blowpipeDartKey, isSearchableEquipment } from '@/lib/Equipment';
 import { DEFAULT_AUTO_BUFFS_CONFIG } from '@/lib/AutoBuffs';
 import { optimize, Optimizer, styleFamily } from '@/lib/Optimizer';
 import { EquipmentPiece, PlayerEquipment } from '@/types/Player';
@@ -147,6 +147,24 @@ describe('Optimizer', () => {
 
     expect(results[0].equipment.weapon?.name).toBe('Toxic blowpipe');
     expect(results.map((r) => r.equipment.weapon?.itemVars?.blowpipeDartName)).toContain('Dragon dart');
+  });
+
+  test('never tries a blowpipe with a dart the user hid, but keeps its other darts', () => {
+    const monster = getTestMonster('Abyssal demon');
+    const blowpipe = findEquipment('Toxic blowpipe', 'Charged');
+    const dragon = findEquipment('Dragon dart');
+    const adamant = findEquipment('Adamant dart');
+    const results = optimize({
+      player: getTestPlayer(monster),
+      monster,
+      poolIds: [blowpipe.id, dragon.id, adamant.id],
+      excludedBlowpipeDarts: [blowpipeDartKey(blowpipe.id, dragon.id)],
+      styles: ['ranged'],
+      buffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
+    });
+
+    const loaded = results.filter((r) => r.equipment.weapon?.name === 'Toxic blowpipe');
+    expect(loaded.map((r) => r.equipment.weapon?.itemVars?.blowpipeDartName)).toEqual(['Adamant dart']);
   });
 
   test("never uses novelty weapons that can't attack (greegrees)", () => {

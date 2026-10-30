@@ -7,6 +7,7 @@ import LazyImage from '@/app/components/generic/LazyImage';
 import { cross } from 'd3-array';
 import {
   availableEquipment,
+  blowpipeDartKey,
   canBlowpipeUseDart,
   CORRUPTED_GAUNTLET_EQUIPMENT_IDS,
   DARTS,
@@ -67,6 +68,8 @@ interface IEquipmentSelectProps {
   ownedEquipmentIds?: Set<number>;
   /** Equipment with these IDs is never listed (e.g. items the user filtered out in settings). */
   excludedEquipmentIds?: Set<number>;
+  /** Blowpipe and dart combinations (see blowpipeDartKey) that are never listed. */
+  excludedBlowpipeDarts?: Set<string>;
   /** Close and clear the search once an item is picked, instead of keeping it open to pick more. */
   closeAfterSelect?: boolean;
   placeholder?: string;
@@ -139,8 +142,8 @@ const hideVariants = (v: EquipmentOption[]) => {
 
 const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
   const {
-    customAvailableEquipmentFilter, onSelectedItemChange, canonicalize, ownedEquipmentIds, excludedEquipmentIds, closeAfterSelect, placeholder,
-    id,
+    customAvailableEquipmentFilter, onSelectedItemChange, canonicalize, ownedEquipmentIds, excludedEquipmentIds, excludedBlowpipeDarts,
+    closeAfterSelect, placeholder, id,
   } = props;
   const store = useStore();
   const { itemTags } = store.custom;
@@ -186,12 +189,13 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
     }
 
     cross(blowpipeEntries, DARTS)
-      .filter(([blowpipe, dart]) => canBlowpipeUseDart(blowpipe.label, dart.name))
+      .filter(([blowpipe, dart]) => canBlowpipeUseDart(blowpipe.label, dart.name)
+        && !excludedBlowpipeDarts?.has(blowpipeDartKey(blowpipe.equipment.id, dart.id)))
       .forEach(([blowpipe, dart]) => {
         entries.push({
           ...blowpipe,
           label: `${blowpipe.label} (${dart.name.replace(' dart', '')})`,
-          value: `${blowpipe.value}_${dart.id}`,
+          value: blowpipeDartKey(blowpipe.equipment.id, dart.id),
           equipment: {
             ...blowpipe.equipment,
             itemVars: {
@@ -204,7 +208,7 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
       });
 
     return gauntletSort(entries, store.monster.id);
-  }, [store.monster.id, customAvailableEquipmentFilter, ownedEquipmentIds, excludedEquipmentIds, tagsById]);
+  }, [store.monster.id, customAvailableEquipmentFilter, ownedEquipmentIds, excludedEquipmentIds, excludedBlowpipeDarts, tagsById]);
 
   // Kept stable between renders, so the search results are only worked out again when something changes
   const customSort = useCallback(

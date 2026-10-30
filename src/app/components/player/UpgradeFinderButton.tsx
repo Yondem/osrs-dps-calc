@@ -376,7 +376,7 @@ const inferListName = (targets: UpgradeFinderTarget[]) => (targets.length > 0 &&
 const UpgradeFinderButton: React.FC = observer(() => {
   const store = useStore();
   const {
-    ownedEquipmentIds, hiddenEquipmentIds, availableMonsters,
+    ownedEquipmentIds, hiddenEquipmentIds, hiddenBlowpipeDartKeys, availableMonsters,
   } = store;
   const savedTargets = store.prefs.upgradeFinderTargets;
   const [isOpen, setIsOpen] = useState(false);
@@ -476,6 +476,7 @@ const UpgradeFinderButton: React.FC = observer(() => {
       monster: t.monster,
       ownedIds,
       candidateIds,
+      excludedBlowpipeDarts: [...hiddenBlowpipeDartKeys],
       styles: usableStyles(t),
       buffsConfig,
       refineCount: targets.length > 1 ? 12 : 20,

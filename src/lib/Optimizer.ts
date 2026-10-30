@@ -1,6 +1,6 @@
 import PlayerVsNPCCalc from '@/lib/PlayerVsNPCCalc';
 import {
-  AmmoApplicability, ammoApplicability, availableEquipment, calculateEquipmentBonusesFromGear, canBlowpipeUseDart,
+  AmmoApplicability, ammoApplicability, availableEquipment, blowpipeDartKey, calculateEquipmentBonusesFromGear, canBlowpipeUseDart,
   CORRUPTED_GAUNTLET_EQUIPMENT_IDS, DARTS, GAUNTLET_EQUIPMENT_IDS, getCanonicalItemId,
 } from '@/lib/Equipment';
 import { BLOWPIPE_IDS, CORRUPTED_GAUNTLET_MONSTER_IDS, GAUNTLET_MONSTER_IDS } from '@/lib/constants';
@@ -31,6 +31,7 @@ export interface OptimizeOptions {
   monster: Monster;
   poolIds: number[]; // equipment the search may use
   pool?: EquipmentPiece[]; // an already resolved pool (see resolvePool), used instead of poolIds
+  excludedBlowpipeDarts?: string[]; // blowpipe and dart combinations (see blowpipeDartKey) that are never tried
   styles: AutoBuffStyle[]; // combat styles to search
   buffsConfig: AutoBuffsConfig | null; // prayers and potions per style, or null to keep the loadout's own
   resultsPerStyle?: number;
@@ -367,11 +368,13 @@ export class Optimizer {
 
   /**
    * A blowpipe once per dart in the pool it can load, or any other weapon as it is. Darts loaded into a blowpipe
-   * don't show up in a bank export, so with none in the pool every dart it can load is tried.
+   * don't show up in a bank export, so with none in the pool every dart it can load is tried. Hidden combinations
+   * are never tried.
    */
   public weaponVariants(w: EquipmentPiece): EquipmentPiece[] {
     if (!BLOWPIPE_IDS.includes(w.id)) return [w];
-    const loadable = DARTS.filter((d) => canBlowpipeUseDart(w.name, d.name));
+    const loadable = DARTS.filter((d) => canBlowpipeUseDart(w.name, d.name)
+      && !this.opts.excludedBlowpipeDarts?.includes(blowpipeDartKey(w.id, d.id)));
     const inPool = loadable.filter((d) => this.pool.some((eq) => eq.id === d.id));
     return (inPool.length > 0 ? inPool : loadable)
       .map((d) => ({ ...w, itemVars: { ...w.itemVars, blowpipeDartName: d.name, blowpipeDartId: d.id } }));

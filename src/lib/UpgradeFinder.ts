@@ -27,6 +27,7 @@ export interface UpgradeFinderOptions {
   monster: Monster;
   ownedIds: number[]; // what the baseline may use
   candidateIds: number[]; // what may be acquired; owned items are skipped
+  excludedBlowpipeDarts?: string[]; // blowpipe and dart combinations (see blowpipeDartKey) that are never tried
   styles: AutoBuffStyle[];
   buffsConfig: AutoBuffsConfig | null;
   refineCount?: number; // how many of the best screened upgrades get the full refinement
@@ -74,7 +75,7 @@ export const findUpgrades = (opts: UpgradeFinderOptions, onProgress?: ProgressFn
   const all = resolvePool([...opts.candidateIds, ...opts.ownedIds], monster);
   const isOwned = (eq: EquipmentPiece) => ownedNames.has(eq.name);
   const base = {
-    player, monster, poolIds: [], styles, buffsConfig,
+    player, monster, poolIds: [], styles, buffsConfig, excludedBlowpipeDarts: opts.excludedBlowpipeDarts,
   };
   const withPool = (pool: EquipmentPiece[]) => new Optimizer({ ...base, pool });
 

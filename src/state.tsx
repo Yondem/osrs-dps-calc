@@ -31,7 +31,7 @@ import {
 } from '@/utils';
 import { ComputeBasicRequest, ComputeReverseRequest, WorkerRequestType } from '@/worker/CalcWorkerTypes';
 import { getMonsters, INITIAL_MONSTER_INPUTS } from '@/lib/Monsters';
-import { availableEquipment, calculateEquipmentBonusesFromGear } from '@/lib/Equipment';
+import { availableEquipment, blowpipeDartKey, calculateEquipmentBonusesFromGear } from '@/lib/Equipment';
 import { BankData, getOwnedEquipmentIds, withAliasVariants } from '@/lib/Bank';
 import { Backup } from '@/lib/Backup';
 import { resolveSavedSetupEquipment, savedSetupFromPlayer } from '@/lib/SavedSetups';
@@ -258,6 +258,7 @@ class GlobalState implements State {
    */
   custom: CustomSettings = {
     hiddenItemIds: [],
+    hiddenBlowpipeDarts: [],
     itemTags: [],
     savedSetups: [],
     hiddenPresets: [],
@@ -590,7 +591,7 @@ class GlobalState implements State {
   importBackup(backup: Backup, includeBank: boolean) {
     this.applyStoredPreferences(backup.prefs);
     this.updateCustomSettings({
-      hiddenItemIds: [], itemTags: [], savedSetups: [], hiddenPresets: [], ...backup.custom,
+      hiddenItemIds: [], hiddenBlowpipeDarts: [], itemTags: [], savedSetups: [], hiddenPresets: [], ...backup.custom,
     });
     if (includeBank && backup.bank) {
       this.setBank(backup.bank);
@@ -656,6 +657,27 @@ class GlobalState implements State {
 
   unhideItem(id: number) {
     this.updateCustomSettings({ hiddenItemIds: this.custom.hiddenItemIds.filter((i) => i !== id) });
+  }
+
+  /**
+   * Keys (see blowpipeDartKey) of the blowpipe and dart combinations hidden from the equipment search, including the
+   * blowpipe's functionally identical variants.
+   */
+  get hiddenBlowpipeDartKeys(): Set<string> {
+    return new Set(this.custom.hiddenBlowpipeDarts.flatMap(({ blowpipeId, dartId }) => [...withAliasVariants([blowpipeId])]
+      .map((id) => blowpipeDartKey(id, dartId))));
+  }
+
+  hideBlowpipeDart(blowpipeId: number, dartId: number) {
+    const { hiddenBlowpipeDarts } = this.custom;
+    if (hiddenBlowpipeDarts.some((h) => h.blowpipeId === blowpipeId && h.dartId === dartId)) return;
+    this.updateCustomSettings({ hiddenBlowpipeDarts: [...hiddenBlowpipeDarts, { blowpipeId, dartId }] });
+  }
+
+  unhideBlowpipeDart(blowpipeId: number, dartId: number) {
+    this.updateCustomSettings({
+      hiddenBlowpipeDarts: this.custom.hiddenBlowpipeDarts.filter((h) => h.blowpipeId !== blowpipeId || h.dartId !== dartId),
+    });
   }
 
   /**

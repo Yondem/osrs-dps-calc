@@ -119,6 +119,11 @@ export const canBlowpipeUseDart = (blowpipeName: string, dartName: string): bool
 };
 
 /**
+ * Identifies a blowpipe loaded with a particular dart, e.g. to hide just that combination.
+ */
+export const blowpipeDartKey = (blowpipeId: number, dartId: number): string => `${blowpipeId}_${dartId}`;
+
+/**
  * The IDs of the items worn in a loadout, including the dart loaded into a blowpipe.
  */
 export const wornItemIds = (gear: PlayerEquipment): number[] => Object.values(gear)

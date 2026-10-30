@@ -125,7 +125,7 @@ const BackupSection: React.FC = observer(() => {
             {[
               plural(pending.custom.savedSetups?.length ?? 0, 'saved setup'),
               plural(pending.custom.itemTags?.length ?? 0, 'tag'),
-              plural(pending.custom.hiddenItemIds?.length ?? 0, 'filtered item'),
+              plural((pending.custom.hiddenItemIds?.length ?? 0) + (pending.custom.hiddenBlowpipeDarts?.length ?? 0), 'filtered item'),
             ].join(', ')}
             {pending.bank ? ` and a bank of ${plural(pending.bank.items.length, 'item')}` : ''}
             .

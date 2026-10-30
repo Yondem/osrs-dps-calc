@@ -88,11 +88,17 @@ export interface ItemTag {
   itemId: number;
 }
 
+export interface HiddenBlowpipeDart {
+  blowpipeId: number;
+  dartId: number;
+}
+
 /**
  * User customisations from the settings menu, stored separately from preferences.
  */
 export interface CustomSettings {
   hiddenItemIds: number[]; // hidden from the equipment search
+  hiddenBlowpipeDarts: HiddenBlowpipeDart[]; // a blowpipe loaded with one dart, hidden without hiding the blowpipe
   itemTags: ItemTag[]; // search shortcuts, e.g. "tbow" -> Twisted bow
   savedSetups: SavedSetup[];
   hiddenPresets: string[]; // EquipmentPreset keys of built-in presets hidden from the Presets dropdown
