@@ -33,6 +33,8 @@ const calcKeyToString = (value: number, calcKey: keyof PlayerVsNPCCalculatedLoad
     case 'expectedHit':
     case 'specExpected':
       return value.toFixed(EXPECTED_HIT_PRECISION);
+    case 'specPerEnergy':
+      return value.toFixed(DPS_PRECISION);
     case 'ttk':
       return value === 0
         ? '-----'
@@ -75,13 +77,13 @@ const ResultRow: React.FC<PropsWithChildren<IResultRowProps>> = observer((props)
 
     return Object.values(loadouts).map((l, i) => {
       const value = l[calcKey] as number;
-      if (hasResults && calcKey.startsWith('spec') && (value === undefined || value === null)) {
+      if (hasResults && calcKey.startsWith('spec') && (l.specExpected === undefined || l.specExpected === null)) {
         // results are in, but the weapon has no implemented special attack
         // we colspan on the first entry (specAccuracy) if extended, and just return nothing for the rest
         return (calcKey === 'specAccuracy' || !collapseSpecs)
           ? (
             // eslint-disable-next-line react/no-array-index-key
-            <th key={i} rowSpan={5} className="w-28 border-r bg-dark-400 text-dark-200 text-center text-xs">
+            <th key={i} rowSpan={6} className="w-28 border-r bg-dark-400 text-dark-200 text-center text-xs">
               {userIssues.find((is) => is.loadout === `${i + 1}` && is.type === UserIssueType.EQUIPMENT_SPEC_UNSUPPORTED) ? 'Not implemented' : 'N/A'}
             </th>
           ) : undefined;
@@ -182,6 +184,9 @@ const PlayerVsNPCResultsTable: React.FC = observer(() => {
             </ResultRow>
             <ResultRow calcKey="specExpected" title="The expected hit that the special attack will deal to the monster per use, including misses" hasResults={hasResults} collapseSpecs={resultsExpanded}>
               Expected hit
+            </ResultRow>
+            <ResultRow calcKey="specPerEnergy" title="The expected hit for each 1% of special attack energy the spec costs" hasResults={hasResults} collapseSpecs={resultsExpanded}>
+              Damage per 1% spec
             </ResultRow>
           </>
         )}

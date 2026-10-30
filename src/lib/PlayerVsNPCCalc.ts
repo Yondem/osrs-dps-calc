@@ -2578,6 +2578,15 @@ export default class PlayerVsNPCCalc extends BaseCalc {
     return Math.trunc(current * bonus / 100);
   };
 
+  /**
+   * For a special attack calc: its expected damage for each 1% of special attack energy it costs, or undefined if it
+   * doesn't cost energy (e.g. the Soulreaper axe).
+   */
+  getSpecDamagePerEnergy(): number | undefined {
+    const cost = this.getSpecCost();
+    return cost ? this.getExpectedDamage() / cost : undefined;
+  }
+
   getSpecCost(): number | undefined {
     const weaponName = this.player.equipment.weapon?.name;
     if (!weaponName) {

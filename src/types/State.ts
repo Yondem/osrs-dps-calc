@@ -135,6 +135,7 @@ export interface PlayerVsNPCCalculatedLoadout extends CalculatedLoadout {
   specExpected?: number,
   specMomentDps?: number,
   specFullDps?: number,
+  specPerEnergy?: number, // expected damage per 1% special attack energy
   specHitDist?: ChartEntry[],
 }
 
