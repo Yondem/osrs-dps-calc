@@ -157,16 +157,6 @@ const PlayerVsNPCResultsTable: React.FC = observer(() => {
         <ResultRow calcKey="ttk" title="The average time (in seconds) it will take to defeat the monster" hasResults={hasResults}>
           Avg. TTK
         </ResultRow>
-        {some(loadouts, (l) => isDefined(l.rotationTtk)) && (
-          <>
-            <ResultRow calcKey="rotationDps" title="Your DPS when you also spec with your spec weapon whenever you have the energy" hasResults={hasResults}>
-              DPS with specs
-            </ResultRow>
-            <ResultRow calcKey="rotationTtk" title="Your average kill time when you also spec with your spec weapon whenever you have the energy" hasResults={hasResults}>
-              Avg. TTK with specs
-            </ResultRow>
-          </>
-        )}
         <ResultRow calcKey="accuracy" title="How accurate you are against the monster" hasResults={hasResults}>
           Accuracy
         </ResultRow>
@@ -207,6 +197,17 @@ const PlayerVsNPCResultsTable: React.FC = observer(() => {
             <ResultRow calcKey="specPerEnergy" title="The expected hit for each 1% of special attack energy the spec costs" hasResults={hasResults} collapseSpecs={resultsExpanded}>
               Damage per 1% spec
             </ResultRow>
+            {/* After the rows the "N/A" cell for weapons without a spec covers, as these use the spec weapon instead */}
+            {some(loadouts, (l) => isDefined(l.rotationTtk)) && (
+              <>
+                <ResultRow calcKey="rotationDps" title="Your DPS when you also spec with your spec weapon whenever you have the energy" hasResults={hasResults}>
+                  DPS with specs
+                </ResultRow>
+                <ResultRow calcKey="rotationTtk" title="Your average kill time when you also spec with your spec weapon whenever you have the energy" hasResults={hasResults}>
+                  Avg. TTK with specs
+                </ResultRow>
+              </>
+            )}
           </>
         )}
       </tbody>
