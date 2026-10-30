@@ -904,6 +904,13 @@ class GlobalState implements State {
   }
 
   /**
+   * Replaces the selected loadout's spec weapon (updatePlayer would merge the new item into the old one).
+   */
+  setSpecWeapon(weapon: EquipmentPiece | null) {
+    this.loadouts[this.selectedLoadout].buffs.specWeapon = weapon;
+  }
+
+  /**
    * Update the monster state.
    * @param monster
    */

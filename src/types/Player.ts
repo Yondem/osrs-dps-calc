@@ -162,6 +162,14 @@ export interface Player extends EquipmentStats {
      * @see https://oldschool.runescape.wiki/w/Venator_bow
      */
     bounceTargets?: Monster[];
+    /**
+     * A weapon swapped to for its special attack whenever there's energy, for the "with specs" results.
+     */
+    specWeapon?: EquipmentPiece | null;
+    /**
+     * Seconds between kills, during which spec energy keeps regenerating.
+     */
+    specDowntime?: number;
   };
   spell: Spell | null;
 }

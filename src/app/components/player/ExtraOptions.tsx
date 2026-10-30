@@ -11,6 +11,8 @@ import chinchompa from '@/public/img/misc/chinchompa.png';
 import thrall from '@/public/img/misc/resurrect_greater_ghost.png';
 import NumberInput from '@/app/components/generic/NumberInput';
 import MonsterSelect from '@/app/components/monster/MonsterSelect';
+import EquipmentSelect from '@/app/components/player/equipment/EquipmentSelect';
+import { isSearchableEquipment, WEAPON_SPEC_COSTS } from '@/lib/Equipment';
 import { IconX } from '@tabler/icons-react';
 import { toJS } from 'mobx';
 import { Thrall } from '@/types/Player';
@@ -28,6 +30,7 @@ const ExtraOptions: React.FC = observer(() => {
   const { player } = store;
   const { weapon } = player.equipment;
   const bounceTargets = player.buffs.bounceTargets ?? [];
+  const specWeapon = player.buffs.specWeapon ?? null;
 
   // A bounce target shares the main monster's raid scaling, but not its defence reductions or current HP
   const addBounceTarget = (m: Monster) => store.setBounceTargets([...bounceTargets, {
@@ -210,6 +213,54 @@ const ExtraOptions: React.FC = observer(() => {
               );
             })}
           </div>
+        </div>
+        <div className="w-full mt-2 text-sm">
+          <span className="select-none">
+            {specWeapon?.image && <img src={getCdnImage(`equipment/${specWeapon.image}`)} width={18} className="inline-block" alt="" />}
+            {' '}
+            Spec weapon
+          </span>
+          {specWeapon ? (
+            <>
+              <div className="mt-1 flex items-center gap-1">
+                <span className="grow min-w-0 truncate">
+                  {specWeapon.name}
+                  {specWeapon.version && <span className="text-xs text-gray-400 dark:text-gray-300">{` #${specWeapon.version}`}</span>}
+                </span>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-red transition-colors"
+                  onClick={() => store.setSpecWeapon(null)}
+                  aria-label={`Remove ${specWeapon.name}`}
+                >
+                  <IconX size={16} />
+                </button>
+              </div>
+              <div className="mt-1">
+                <NumberInput
+                  className="form-control w-14"
+                  required
+                  min={0}
+                  max={3600}
+                  value={player.buffs.specDowntime ?? 0}
+                  onChange={(v) => store.updatePlayer({ buffs: { specDowntime: v } })}
+                />
+                <span className="ml-1 select-none">Downtime between kills (s)</span>
+              </div>
+            </>
+          ) : (
+            <div className="mt-1">
+              <EquipmentSelect
+                id="spec-weapon-select"
+                placeholder="Pick a spec weapon..."
+                customAvailableEquipmentFilter={(eq) => isSearchableEquipment(eq) && eq.slot === 'weapon' && WEAPON_SPEC_COSTS[eq.name] !== undefined}
+                closeAfterSelect
+                onSelectedItemChange={(item) => {
+                  if (item) store.setSpecWeapon(item.equipment);
+                }}
+              />
+            </div>
+          )}
         </div>
         {weapon && VENATOR_BOWS.includes(weapon.name) && weapon.version === 'Charged' && (
           <div className="w-full mt-2 text-sm">

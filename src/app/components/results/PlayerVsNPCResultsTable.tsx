@@ -27,6 +27,7 @@ const calcKeyToString = (value: number, calcKey: keyof PlayerVsNPCCalculatedLoad
       return `${(value * 100).toFixed(ACCURACY_PRECISION)}%`;
     case 'dps':
     case 'totalDps':
+    case 'rotationDps':
     case 'specMomentDps':
       return value.toFixed(DPS_PRECISION);
     case 'specFullDps':
@@ -37,6 +38,7 @@ const calcKeyToString = (value: number, calcKey: keyof PlayerVsNPCCalculatedLoad
     case 'specPerEnergy':
       return value.toFixed(DPS_PRECISION);
     case 'ttk':
+    case 'rotationTtk':
       return value === 0
         ? '-----'
         : `${value.toFixed(1)}s`;
@@ -73,8 +75,9 @@ const ResultRow: React.FC<PropsWithChildren<IResultRowProps>> = observer((props)
   const loadouts = toJS(calc.loadouts);
 
   const cells = useMemo(() => {
-    const aggregator = ['ttk', 'npcDefRoll'].includes(calcKey) ? min : max;
-    const bestValue = aggregator(Object.values(loadouts).filter((l) => (calcKey === 'ttk' ? l[calcKey] !== 0 : true)), (l) => l[calcKey] as number);
+    const isTtk = calcKey === 'ttk' || calcKey === 'rotationTtk';
+    const aggregator = (isTtk || calcKey === 'npcDefRoll') ? min : max;
+    const bestValue = aggregator(Object.values(loadouts).filter((l) => (isTtk ? l[calcKey] !== 0 : true)), (l) => l[calcKey] as number);
 
     return Object.values(loadouts).map((l, i) => {
       const value = l[calcKey] as number;
@@ -154,6 +157,16 @@ const PlayerVsNPCResultsTable: React.FC = observer(() => {
         <ResultRow calcKey="ttk" title="The average time (in seconds) it will take to defeat the monster" hasResults={hasResults}>
           Avg. TTK
         </ResultRow>
+        {some(loadouts, (l) => isDefined(l.rotationTtk)) && (
+          <>
+            <ResultRow calcKey="rotationDps" title="Your DPS when you also spec with your spec weapon whenever you have the energy" hasResults={hasResults}>
+              DPS with specs
+            </ResultRow>
+            <ResultRow calcKey="rotationTtk" title="Your average kill time when you also spec with your spec weapon whenever you have the energy" hasResults={hasResults}>
+              Avg. TTK with specs
+            </ResultRow>
+          </>
+        )}
         <ResultRow calcKey="accuracy" title="How accurate you are against the monster" hasResults={hasResults}>
           Accuracy
         </ResultRow>

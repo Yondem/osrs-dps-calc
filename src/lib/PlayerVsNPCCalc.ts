@@ -74,6 +74,7 @@ import {
   AmmoApplicability,
   ammoApplicability,
   calculateAttackSpeed,
+  calculateEquipmentBonusesFromGear,
   getHighestOffensiveStyle,
   WEAPON_SPEC_COSTS,
 } from '@/lib/Equipment';
@@ -81,7 +82,7 @@ import BaseCalc, { CalcOpts, InternalOpts } from '@/lib/BaseCalc';
 import { scaleMonster, scaleMonsterHpOnly } from '@/lib/MonsterScaling';
 import { CombatStyleType, getRangedDamageType } from '@/types/PlayerCombatStyle';
 import { range, some, sum } from 'd3-array';
-import { FeatureStatus } from '@/utils';
+import { FeatureStatus, getDefaultCombatStyle } from '@/utils';
 import UserIssueType from '@/enums/UserIssueType';
 import {
   BoltContext,
@@ -2672,6 +2673,63 @@ export default class PlayerVsNPCCalc extends BaseCalc {
     }
 
     return FeatureStatus.NOT_APPLICABLE;
+  }
+
+  /**
+   * The special attack of the spec weapon picked in Extra options, with the rest of the loadout's gear and the weapon's
+   * default style (a two-handed one takes the shield off). Null without one, or if its spec isn't in the calculator.
+   */
+  private getSpecWeaponCalc(): PlayerVsNPCCalc | null {
+    const { specWeapon } = this.player.buffs;
+    if (!specWeapon || this.opts.usingSpecialAttack) {
+      return null;
+    }
+
+    const swapped: Player = {
+      ...this.player,
+      equipment: {
+        ...this.player.equipment,
+        weapon: specWeapon,
+        shield: specWeapon.isTwoHanded ? null : this.player.equipment.shield,
+      },
+      style: getDefaultCombatStyle(specWeapon.category),
+      spell: null,
+      buffs: {
+        ...this.player.buffs, specWeapon: null, bounceTargets: [], thrall: null,
+      },
+    };
+    const player = { ...swapped, ...calculateEquipmentBonusesFromGear(swapped, this.baseMonster) };
+    return new PlayerVsNPCCalc(player, this.baseMonster, {
+      loadoutName: `${this.opts.loadoutName}/spec weapon`,
+      disableMonsterScaling: this.opts.disableMonsterScaling,
+    }).getSpecCalc();
+  }
+
+  /**
+   * DPS and average kill time when also using the spec weapon from Extra options whenever there's energy. Energy
+   * regenerates 10% every 30 seconds (15 with a Lightbearer), during the kill and the downtime before it (up to 100%).
+   * Each spec trades the main weapon's damage during the spec attack for the spec's. Undefined without a spec weapon.
+   */
+  public getSpecRotation(): { dps: number, ttk: number } | undefined {
+    const spec = this.getSpecWeaponCalc();
+    const cost = spec?.getSpecCost();
+    if (!spec || !cost) {
+      return undefined;
+    }
+
+    const specSeconds = spec.getExpectedAttackSpeed() * SECONDS_PER_TICK;
+    const netPerEnergy = (spec.getExpectedDamage() - this.getAttackDps() * specSeconds) / cost;
+    const regen = this.wearing('Lightbearer') ? 10 / 15 : 10 / 30; // % energy per second
+    const startEnergy = Math.min(100, regen * (this.player.buffs.specDowntime ?? 0));
+
+    // The kill takes as long as the HP left after the specs from banked energy, at the main DPS plus the specs from the
+    // energy regenerated during it: t = (hp - n * start) / (dps + n * regen)
+    const hp = this.monster.inputs.monsterCurrentHp;
+    const dps = this.getDps();
+    const withSpecs = (hp - netPerEnergy * startEnergy) / (dps + netPerEnergy * regen);
+    // Scale the full kill time calculation (which counts overkill) by how much faster the specs make it
+    const ratio = Math.max(withSpecs, specSeconds) / (hp / dps);
+    return { dps: dps / ratio, ttk: this.getTtk() * ratio };
   }
 
   getSpecCalc(): PlayerVsNPCCalc | null {

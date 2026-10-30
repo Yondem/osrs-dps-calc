@@ -31,6 +31,7 @@ const computePvMValues: Handler<WorkerRequestType.COMPUTE_BASIC> = async (data) 
       disableMonsterScaling: calcOpts.disableMonsterScaling,
     });
     const specCalc = calc.getSpecCalc();
+    const rotation = calc.getSpecRotation();
 
     res.push({
       npcDefRoll: calc.getNPCDefenceRoll(),
@@ -51,6 +52,8 @@ const computePvMValues: Handler<WorkerRequestType.COMPUTE_BASIC> = async (data) 
       specFullDps: specCalc?.getSpecDps(),
       specPerEnergy: specCalc?.getSpecDamagePerEnergy(),
       totalDps: calc.getTotalDps(),
+      rotationDps: rotation?.dps,
+      rotationTtk: rotation?.ttk,
       specHitDist: specCalc?.getDistribution().asHistogram(calcOpts.hitDistHideMisses),
       specDetails: specCalc?.details,
     });
