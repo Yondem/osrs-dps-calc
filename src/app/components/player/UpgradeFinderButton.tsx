@@ -21,7 +21,7 @@ import { INITIAL_MONSTER_INPUTS } from '@/lib/Monsters';
 import { scaleMonster } from '@/lib/MonsterScaling';
 import { MONSTER_PHASES_BY_ID, PARTY_SIZE_REQUIRED_MONSTER_IDS, TOMBS_OF_AMASCUT_MONSTER_IDS } from '@/lib/constants';
 import { MonsterAttribute } from '@/enums/MonsterAttribute';
-import { UPGRADE_FINDER_PRESETS } from '@/lib/UpgradeFinderPresets';
+import { inPresetOrder, UPGRADE_FINDER_PRESETS } from '@/lib/UpgradeFinderPresets';
 import { equipmentDisplayName } from '@/lib/SavedSetups';
 import { runUpgradeFinder, UpgradeRun } from '@/worker/UpgradeRunner';
 import { resultToSetup } from '@/app/components/player/FindBestSetupButton';
@@ -378,7 +378,13 @@ const UpgradeFinderButton: React.FC = observer(() => {
   const {
     ownedEquipmentIds, hiddenEquipmentIds, availableMonsters,
   } = store;
-  const savedTargets = store.prefs.upgradeFinderTargets;
+  const storedTargets = store.prefs.upgradeFinderTargets;
+  const activeList = store.prefs.upgradeFinderList || inferListName(storedTargets);
+  const activePreset = UPGRADE_FINDER_PRESETS.find((p) => p.label === activeList);
+  const savedTargets = useMemo(
+    () => (activePreset ? inPresetOrder(storedTargets, activePreset) : storedTargets),
+    [storedTargets, activePreset],
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<'current' | 'list'>('current');
   const [styles, setStyles] = useState<AutoBuffStyle[]>(AUTO_BUFF_STYLES);
@@ -399,9 +405,6 @@ const UpgradeFinderButton: React.FC = observer(() => {
       setProgress(null);
     }
   }, [isOpen]);
-
-  const activeList = store.prefs.upgradeFinderList || inferListName(savedTargets);
-  const activePreset = UPGRADE_FINDER_PRESETS.find((p) => p.label === activeList);
 
   // Changes are saved to the active list, so switching to another list and back keeps them
   const setTargets = (targets: UpgradeFinderTarget[]) => store.updatePreferences({

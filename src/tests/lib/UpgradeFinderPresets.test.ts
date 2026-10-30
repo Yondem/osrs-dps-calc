@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { getMonsters, INITIAL_MONSTER_INPUTS } from '@/lib/Monsters';
 import { scaleMonster } from '@/lib/MonsterScaling';
-import { UPGRADE_FINDER_PRESETS } from '@/lib/UpgradeFinderPresets';
+import { inPresetOrder, UPGRADE_FINDER_PRESETS } from '@/lib/UpgradeFinderPresets';
 import { Monster } from '@/types/Monster';
 import { UpgradeFinderTarget } from '@/types/State';
 
@@ -23,7 +23,7 @@ describe('UPGRADE_FINDER_PRESETS', () => {
   });
 
   test('raid presets set their scaling', () => {
-    const akkha = build(preset('ToA').targets[0]);
+    const akkha = build(preset('ToA').targets.find((t) => t.id === 11789)!);
     // 400 hp, +120% at raid level 300, +18% at path level 3
     expect(scaleMonster(akkha).skills.hp).toBe(1040);
 
@@ -33,5 +33,27 @@ describe('UPGRADE_FINDER_PRESETS', () => {
     const tekton = build(preset('CoX').targets[0]);
     const cm = { ...tekton, inputs: { ...tekton.inputs, isFromCoxCm: true } };
     expect(scaleMonster(cm).skills.def).toBeGreaterThan(scaleMonster(tekton).skills.def);
+  });
+
+  test('raids are in the order you fight them', () => {
+    const names = (label: string) => [...new Set(preset(label).targets.map((t) => build(t).name))];
+
+    expect(names('CoX')).toEqual(['Tekton', 'Ice demon', 'Lizardman shaman (Chambers of Xeric)', 'Vanguard', 'Vespula', 'Vasa Nistirio',
+      'Skeletal Mystic', 'Muttadile', 'Great Olm']);
+    expect(names('ToA')).toEqual(['Ba-Ba', 'Kephri', 'Akkha', 'Zebak', 'Obelisk (Tombs of Amascut)', "Tumeken's Warden"]);
+    expect(names('TFA')).toEqual(['Archive Guardian', 'Ezekiel', 'Bork', 'The Smorks', 'Moia', 'Dreadnoth the Jellied',
+      "Dagon'hai Elder", "Dagon'hai Monk", 'Xarth', 'Ocellus']);
+  });
+});
+
+describe('inPresetOrder', () => {
+  test("puts a list saved in an older order in the preset's order, keeping its changes and added monsters", () => {
+    const toa = preset('ToA');
+    const added = { id: 415, version: 'Standard', weight: 1 };
+    const saved = [...toa.targets].reverse().map((t) => ({ ...t, weight: 2 }));
+
+    const ordered = inPresetOrder([added, ...saved], toa);
+    expect(ordered.map((t) => t.id)).toEqual([...toa.targets.map((t) => t.id), 415]);
+    expect(ordered.slice(0, -1).every((t) => t.weight === 2)).toBe(true);
   });
 });
