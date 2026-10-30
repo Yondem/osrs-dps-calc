@@ -80,6 +80,8 @@ export interface EquipmentStats {
   defensive: PlayerDefensive,
 }
 
+export type Thrall = 'lesser' | 'superior' | 'greater';
+
 export interface Player extends EquipmentStats {
   name: string;
   style: PlayerCombatStyle;
@@ -148,6 +150,11 @@ export interface Player extends EquipmentStats {
     fragmentOfWater: boolean;
     fragmentOfEarth: boolean;
     fragmentOfFire: boolean;
+    /**
+     * The thrall attacking alongside the player, if any. Loadouts saved before thralls were added don't have it.
+     * @see https://oldschool.runescape.wiki/w/Thralls
+     */
+    thrall?: Thrall | null;
   };
   spell: Spell | null;
 }

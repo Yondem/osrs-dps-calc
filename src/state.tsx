@@ -134,6 +134,7 @@ export const generateEmptyPlayer = (name?: string): Player => ({
     fragmentOfWater: false,
     fragmentOfEarth: false,
     fragmentOfFire: false,
+    thrall: null,
   },
   spell: null,
 });

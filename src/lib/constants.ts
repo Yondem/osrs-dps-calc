@@ -1,4 +1,5 @@
 import { CombatStyleStance } from '@/types/PlayerCombatStyle';
+import type { Thrall } from '@/types/Player';
 
 export const BLOWPIPE_IDS: number[] = [
   12926, // regular
@@ -498,6 +499,13 @@ export const ALWAYS_ACCURATE_MONSTERS: number[] = [
 
 export const DEFAULT_ATTACK_SPEED = 4;
 export const SECONDS_PER_TICK = 0.6;
+
+/**
+ * Thralls attack every 4 ticks and always hit, for 0 up to their tier's max hit, ignoring flat armour.
+ * @see https://oldschool.runescape.wiki/w/Thralls
+ */
+export const THRALL_MAX_HITS: Record<Thrall, number> = { lesser: 1, superior: 2, greater: 3 };
+export const THRALL_ATTACK_SPEED = 4;
 
 export const TTK_DIST_MAX_ITER_ROUNDS = 1000;
 export const TTK_DIST_EPSILON = 0.0001;

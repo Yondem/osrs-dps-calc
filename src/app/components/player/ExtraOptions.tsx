@@ -8,8 +8,12 @@ import forinthry_surge from '@/public/img/misc/forinthry_surge.webp';
 import soulreaper_axe from '@/public/img/misc/soulreaper_axe.png';
 import ba_attacker from '@/public/img/misc/ba_attacker.webp';
 import chinchompa from '@/public/img/misc/chinchompa.png';
+import thrall from '@/public/img/misc/resurrect_greater_ghost.png';
 import NumberInput from '@/app/components/generic/NumberInput';
+import { Thrall } from '@/types/Player';
 import Toggle from '../generic/Toggle';
+
+const THRALL_OPTIONS: [Thrall | null, string][] = [[null, 'Off'], ['lesser', 'Lesser'], ['superior', 'Superior'], ['greater', 'Greater']];
 
 const ExtraOptions: React.FC = observer(() => {
   const store = useStore();
@@ -162,6 +166,29 @@ const ExtraOptions: React.FC = observer(() => {
               ?
             </span>
           </span>
+        </div>
+        <div className="w-full mt-1 text-sm">
+          <span className="select-none">
+            <img src={thrall.src} width={18} className="inline-block" alt="" />
+            {' '}
+            Thrall
+          </span>
+          <div className="mt-1 flex gap-1">
+            {THRALL_OPTIONS.map(([value, label]) => {
+              const on = (player.buffs.thrall ?? null) === value;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  aria-pressed={on}
+                  className={`form-control px-2 py-0 ${on ? 'ring-2 ring-green-500 font-bold' : 'opacity-70'}`}
+                  onClick={() => store.updatePlayer({ buffs: { thrall: value } })}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

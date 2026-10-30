@@ -51,6 +51,8 @@ import {
   SECONDS_PER_TICK,
   TANGLEFOOT_IDS,
   TEKTON_IDS,
+  THRALL_ATTACK_SPEED,
+  THRALL_MAX_HITS,
   TITAN_BOSS_IDS,
   TITAN_ELEMENTAL_IDS,
   TOMBS_OF_AMASCUT_MONSTER_IDS,
@@ -2201,17 +2203,81 @@ export default class PlayerVsNPCCalc extends BaseCalc {
   }
 
   /**
-   * Returns the expected damage per tick, based on the player's attack speed.
+   * Returns the expected damage per tick of the player's own attacks, based on the player's attack speed.
    */
   public getDpt() {
     return this.getExpectedDamage() / this.getExpectedAttackSpeed();
   }
 
   /**
-   * Returns the damage-per-second calculation, which is the damage-per-tick divided by the number of seconds per tick.
+   * Returns the damage per second of the player's own attacks, without their thrall.
+   */
+  public getAttackDps() {
+    return this.getDpt() / SECONDS_PER_TICK;
+  }
+
+  /**
+   * Returns the damage-per-second calculation, including the player's thrall.
    */
   public getDps() {
-    return this.getDpt() / SECONDS_PER_TICK;
+    return this.getAttackDps() + this.getThrallDps();
+  }
+
+  /**
+   * The max hit of the player's thrall against this monster, or 0 without one. Thralls don't damage kurasks and turoths.
+   */
+  public getThrallMaxHit(): number {
+    const { thrall } = this.player.buffs;
+    if (!thrall || /^((King )?Kurask|(Spiked )?Turoth)$/i.test(this.monster.name)) {
+      return 0;
+    }
+    return THRALL_MAX_HITS[thrall];
+  }
+
+  public getThrallDps(): number {
+    return (this.getThrallMaxHit() / 2) / (THRALL_ATTACK_SPEED * SECONDS_PER_TICK);
+  }
+
+  /**
+   * The chance of each total amount of thrall damage over a number of ticks, by damage. The thrall attacks once every
+   * 4 ticks, so over 6 ticks it attacks once half the time and twice the other half.
+   */
+  private thrallDamageOver(ticks: number): number[] {
+    const max = this.getThrallMaxHit();
+    const attacks = ticks / THRALL_ATTACK_SPEED;
+    const whole = Math.floor(attacks);
+    const hit = new Array<number>(max + 1).fill(1 / (max + 1));
+
+    let total = [1];
+    const addHit = (dist: number[]) => {
+      const next = new Array<number>(dist.length + max).fill(0);
+      dist.forEach((p, a) => hit.forEach((q, b) => { next[a + b] += p * q; }));
+      return next;
+    };
+    for (let i = 0; i < whole; i++) total = addHit(total);
+
+    const extra = attacks - whole;
+    if (extra === 0) return total;
+    const withExtra = addHit(total);
+    return withExtra.map((p, dmg) => (1 - extra) * (total[dmg] ?? 0) + extra * p);
+  }
+
+  /**
+   * Adds the thrall's damage between each attack and the next to the player's hits.
+   */
+  private withThrallHits(hits: DelayedHit[]): DelayedHit[] {
+    if (this.getThrallMaxHit() === 0) return hits;
+
+    const merged = new Map<string, DelayedHit>();
+    for (const [wh, delay] of hits) {
+      this.thrallDamageOver(delay).forEach((p, thrallDmg) => {
+        const dmg = wh.getSum() + thrallDmg;
+        const key = `${dmg}:${delay}`;
+        const prev = merged.get(key)?.[0].probability ?? 0;
+        merged.set(key, [new WeightedHit(prev + wh.probability * p, [new Hitsplat(dmg, true)]), delay]);
+      });
+    }
+    return [...merged.values()];
   }
 
   /**
@@ -2247,8 +2313,18 @@ export default class PlayerVsNPCCalc extends BaseCalc {
     if (hist === undefined || hist[0] === undefined || hist[0].value === undefined) {
       throw Error('empty hist1');
     }
+
+    // The chance of each amount of damage per attack, including the thrall's damage until the next attack
+    let probs = hist.map((h) => h.value);
+    if (this.getThrallMaxHit() > 0) {
+      const thrall = this.thrallDamageOver(this.getExpectedAttackSpeed());
+      const combined = new Array<number>(probs.length + thrall.length - 1).fill(0);
+      probs.forEach((p, a) => thrall.forEach((q, b) => { combined[a + b] += p * q; }));
+      probs = combined;
+    }
+
     const startHp = this.monster.inputs.monsterCurrentHp;
-    const max = Math.min(startHp, dist.getMax());
+    const max = Math.min(startHp, probs.length - 1);
     if (max === 0) {
       return 0;
     }
@@ -2258,13 +2334,13 @@ export default class PlayerVsNPCCalc extends BaseCalc {
     for (let hp = 1; hp <= startHp; hp++) {
       let val = 1.0; // takes at least one hit
       for (let hit = 1; hit <= Math.min(hp, max); hit++) {
-        const p = hist[hit];
+        const p = probs[hit];
         if (p) {
-          val += p.value * htk[hp - hit];
+          val += p * htk[hp - hit];
         }
       }
 
-      htk[hp] = val / (1 - hist[0].value);
+      htk[hp] = val / (1 - probs[0]);
     }
 
     return htk[startHp];
@@ -2281,7 +2357,7 @@ export default class PlayerVsNPCCalc extends BaseCalc {
     if (this.wearing('Soulreaper axe')) {
       // assumes using spec every time you reach the current stack count
       const ticksPerSpec = this.getAttackSpeed() * this.player.buffs.soulreaperStacks;
-      return this.getDps() * this.getExpectedAttackSpeed() / ticksPerSpec;
+      return this.getAttackDps() * this.getExpectedAttackSpeed() / ticksPerSpec;
     }
 
     const specCost = this.getSpecCost();
@@ -2292,7 +2368,7 @@ export default class PlayerVsNPCCalc extends BaseCalc {
 
     const ticksToRegen = this.wearing('Lightbearer') ? 25 : 50;
     const ticksPerSpec = specCost * (ticksToRegen / 10);
-    return this.getDps() * this.getExpectedAttackSpeed() / ticksPerSpec;
+    return this.getAttackDps() * this.getExpectedAttackSpeed() / ticksPerSpec;
   }
 
   public getWeaponDelayProvider(): WeaponDelayProvider {
@@ -2325,12 +2401,10 @@ export default class PlayerVsNPCCalc extends BaseCalc {
    * it is an object where keys are tick counts and values are probabilities.
    */
   public getTtkDistribution(): Map<number, number> {
-    if (this.getDistribution()
-      .getExpectedDamage() === 0) { // todo thralls, allow thrall-only compute?
+    if (this.getDistribution().getExpectedDamage() === 0 && this.getThrallMaxHit() === 0) {
       return new Map<number, number>();
     }
 
-    // todo thralls, iterMax = ... * max(speed, thrall_speed) // or don't maybe also
     const speed = this.getAttackSpeed();
     const iterMax = TTK_DIST_MAX_ITER_ROUNDS * speed;
 
@@ -2338,9 +2412,9 @@ export default class PlayerVsNPCCalc extends BaseCalc {
       .singleHitsplat
       .withProbabilisticDelays(this.getWeaponDelayProvider());
 
-    // dist attack-on-specific-tick probabilities
-    // todo thralls, append here
-    const dists = [playerDist];
+    // dist attack-on-specific-tick probabilities. The thrall's hits are added to the player's attacks, as the damage it
+    // does until the next attack.
+    const dists = [this.withThrallHits(playerDist)];
 
     const attackOnTick = dists.map(() => new Float64Array(iterMax + 1));
     attackOnTick.forEach((arr) => {
@@ -2365,10 +2439,10 @@ export default class PlayerVsNPCCalc extends BaseCalc {
     // if the hit dist depends on hp, we'll have to recalculate it each time, so cache the results to not repeat work
     const recalcDistOnHp = this.distIsCurrentHpDependent(this.player, this.monster);
     const hpHitDists = new Array<DelayedHit[]>(this.monster.skills.hp + 1);
-    hpHitDists[this.monster.skills.hp] = playerDist;
+    hpHitDists[this.monster.skills.hp] = dists[0];
     if (recalcDistOnHp) {
       for (let hp = 0; hp <= this.monster.skills.hp; hp++) {
-        hpHitDists[hp] = this.distAtHp(playerDist, hp);
+        hpHitDists[hp] = this.withThrallHits(this.distAtHp(playerDist, hp));
       }
     }
 
