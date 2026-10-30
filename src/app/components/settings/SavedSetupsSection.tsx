@@ -93,7 +93,6 @@ const SetupEditor: React.FC<{ setup: SavedSetup }> = observer(({ setup }) => {
         id={`settings-setup-select-${setup.id}`}
         placeholder="Search to add or replace an item..."
         excludedEquipmentIds={store.hiddenEquipmentIds}
-        excludedBlowpipeDarts={store.hiddenBlowpipeDartKeys}
         onSelectedItemChange={(option) => {
           if (option) setSlot(option.equipment.slot as keyof PlayerEquipment, toSavedSetupItem(option.equipment));
         }}

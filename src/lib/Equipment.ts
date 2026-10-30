@@ -5,6 +5,7 @@ import {
   PlayerOffensive,
 } from '@/types/Player';
 import { Monster } from '@/types/Monster';
+import type { BlowpipeDarts } from '@/types/State';
 import { isDefined, keys } from '@/utils';
 import {
   BLOWPIPE_IDS,
@@ -77,18 +78,18 @@ const findDart = (name: string): EquipmentPiece | undefined => {
 };
 
 /**
- * Darts that can be loaded into a blowpipe.
+ * Darts that can be loaded into a blowpipe, weakest first.
  */
 export const DARTS: EquipmentPiece[] = [
   findDart('Bronze dart'),
   findDart('Iron dart'),
   findDart('Steel dart'),
+  findDart('Black dart'),
   findDart('Mithril dart'),
   findDart('Adamant dart'),
   findDart('Rune dart'),
-  findDart('Black dart'),
-  findDart('Dragon dart'),
   findDart('Amethyst dart'),
+  findDart('Dragon dart'),
 ].filter(isDefined);
 
 const DART_TIER: Record<string, number> = {
@@ -119,9 +120,10 @@ export const canBlowpipeUseDart = (blowpipeName: string, dartName: string): bool
 };
 
 /**
- * Identifies a blowpipe loaded with a particular dart, e.g. to hide just that combination.
+ * Every dart a blowpipe can be loaded with.
  */
-export const blowpipeDartKey = (blowpipeId: number, dartId: number): string => `${blowpipeId}_${dartId}`;
+export const loadableDarts = (blowpipe: EquipmentPiece): EquipmentPiece[] => DARTS
+  .filter((d) => canBlowpipeUseDart(blowpipe.name, d.name));
 
 /**
  * The IDs of the items worn in a loadout, including the dart loaded into a blowpipe.
@@ -296,6 +298,24 @@ export const getCanonicalItemId = (itemId: number): number => {
     if (v.includes(itemId)) return parseInt(k);
   }
   return itemId;
+};
+
+/**
+ * The blowpipes that get their own dart choice. Ornamental versions (e.g. Blazing) share their base blowpipe's.
+ */
+export const BASE_BLOWPIPES: EquipmentPiece[] = BLOWPIPE_IDS
+  .filter((id) => getCanonicalItemId(id) === id)
+  .map((id) => availableEquipment.find((eq) => eq.id === id))
+  .filter(isDefined);
+
+/**
+ * The darts the user picked for a blowpipe (or its base blowpipe), or null if they didn't pick any.
+ */
+export const chosenBlowpipeDarts = (choices: BlowpipeDarts[] | undefined, blowpipe: EquipmentPiece): EquipmentPiece[] | null => {
+  const blowpipeId = getCanonicalItemId(blowpipe.id);
+  const dartIds = choices?.find((c) => c.blowpipeId === blowpipeId)?.dartIds ?? [];
+  const darts = loadableDarts(blowpipe).filter((d) => dartIds.includes(d.id));
+  return darts.length > 0 ? darts : null;
 };
 
 export const getCanonicalItem = (equipmentPiece: EquipmentPiece): EquipmentPiece => {

@@ -8,6 +8,7 @@ import {
 import { BLOWPIPE_IDS } from '@/lib/constants';
 import { EquipmentPiece, Player, PlayerEquipment } from '@/types/Player';
 import { Monster } from '@/types/Monster';
+import type { BlowpipeDarts } from '@/types/State';
 
 /*
  * Finds the items that would raise your DPS the most against a monster, compared to the best setup you can already
@@ -27,7 +28,7 @@ export interface UpgradeFinderOptions {
   monster: Monster;
   ownedIds: number[]; // what the baseline may use
   candidateIds: number[]; // what may be acquired; owned items are skipped
-  excludedBlowpipeDarts?: string[]; // blowpipe and dart combinations (see blowpipeDartKey) that are never tried
+  blowpipeDarts?: BlowpipeDarts[]; // the darts the user picked for their blowpipes: owned, and used for the baseline
   styles: AutoBuffStyle[];
   buffsConfig: AutoBuffsConfig | null;
   refineCount?: number; // how many of the best screened upgrades get the full refinement
@@ -70,18 +71,22 @@ export const findUpgrades = (opts: UpgradeFinderOptions, onProgress?: ProgressFn
   } = opts;
   const progress = (fraction: number) => onProgress?.(Math.round(fraction * 1000), 1000);
 
-  const owned = resolvePool(opts.ownedIds, monster);
+  // Darts picked for a blowpipe are loaded into it, so they're owned although a bank export doesn't show them
+  const ownedIds = [...opts.ownedIds, ...(opts.blowpipeDarts ?? []).flatMap((c) => c.dartIds)];
+  const owned = resolvePool(ownedIds, monster);
   const ownedNames = new Set(owned.map((eq) => eq.name));
-  const all = resolvePool([...opts.candidateIds, ...opts.ownedIds], monster);
+  const all = resolvePool([...opts.candidateIds, ...ownedIds], monster);
   const isOwned = (eq: EquipmentPiece) => ownedNames.has(eq.name);
   const base = {
-    player, monster, poolIds: [], styles, buffsConfig, excludedBlowpipeDarts: opts.excludedBlowpipeDarts,
+    player, monster, poolIds: [], styles, buffsConfig,
   };
   const withPool = (pool: EquipmentPiece[]) => new Optimizer({ ...base, pool });
 
-  // 1. Baseline: the best owned setup per style
+  // 1. Baseline: the best owned setup per style, with blowpipes loaded with the picked darts. Other darts can still
+  // be suggested as upgrades.
   const baselines = new Map<AutoBuffStyle, OptimizeResult>();
-  for (const r of withPool(owned).run((done, total) => progress(0.25 * (done / total)))) {
+  for (const r of new Optimizer({ ...base, pool: owned, blowpipeDarts: opts.blowpipeDarts })
+    .run((done, total) => progress(0.25 * (done / total)))) {
     if (!baselines.has(r.family) && r.equipment.weapon) baselines.set(r.family, r);
   }
   const baselineDps = Math.max(0, ...[...baselines.values()].map((b) => b.dps));

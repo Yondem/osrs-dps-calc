@@ -4,16 +4,14 @@ import { observer } from 'mobx-react-lite';
 import { getCdnImage } from '@/utils';
 import { EquipmentPiece } from '@/types/Player';
 import LazyImage from '@/app/components/generic/LazyImage';
-import { cross } from 'd3-array';
 import {
   availableEquipment,
-  blowpipeDartKey,
-  canBlowpipeUseDart,
+  chosenBlowpipeDarts,
   CORRUPTED_GAUNTLET_EQUIPMENT_IDS,
-  DARTS,
   equipmentAliases,
   GAUNTLET_EQUIPMENT_IDS,
   isSearchableEquipment,
+  loadableDarts,
 } from '@/lib/Equipment';
 import { BLOWPIPE_IDS, GAUNTLET_MONSTER_IDS, CORRUPTED_GAUNTLET_MONSTER_IDS } from '@/lib/constants';
 import Combobox from '../../generic/Combobox';
@@ -68,8 +66,8 @@ interface IEquipmentSelectProps {
   ownedEquipmentIds?: Set<number>;
   /** Equipment with these IDs is never listed (e.g. items the user filtered out in settings). */
   excludedEquipmentIds?: Set<number>;
-  /** Blowpipe and dart combinations (see blowpipeDartKey) that are never listed. */
-  excludedBlowpipeDarts?: Set<string>;
+  /** List each blowpipe once, rather than once per dart (e.g. to hide the blowpipe itself). */
+  plainBlowpipes?: boolean;
   /** Close and clear the search once an item is picked, instead of keeping it open to pick more. */
   closeAfterSelect?: boolean;
   placeholder?: string;
@@ -142,11 +140,11 @@ const hideVariants = (v: EquipmentOption[]) => {
 
 const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
   const {
-    customAvailableEquipmentFilter, onSelectedItemChange, canonicalize, ownedEquipmentIds, excludedEquipmentIds, excludedBlowpipeDarts,
+    customAvailableEquipmentFilter, onSelectedItemChange, canonicalize, ownedEquipmentIds, excludedEquipmentIds, plainBlowpipes,
     closeAfterSelect, placeholder, id,
   } = props;
   const store = useStore();
-  const { itemTags } = store.custom;
+  const { itemTags, blowpipeDarts } = store.custom;
 
   const tagsById = useMemo(() => {
     const map = new Map<number, string[]>();
@@ -188,14 +186,17 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
       }
     }
 
-    cross(blowpipeEntries, DARTS)
-      .filter(([blowpipe, dart]) => canBlowpipeUseDart(blowpipe.label, dart.name)
-        && !excludedBlowpipeDarts?.has(blowpipeDartKey(blowpipe.equipment.id, dart.id)))
-      .forEach(([blowpipe, dart]) => {
+    // A blowpipe is listed once per dart: the darts picked for it in settings, or every dart it can load
+    for (const blowpipe of blowpipeEntries) {
+      if (plainBlowpipes) {
+        entries.push(blowpipe);
+        continue;
+      }
+      for (const dart of chosenBlowpipeDarts(blowpipeDarts, blowpipe.equipment) ?? loadableDarts(blowpipe.equipment)) {
         entries.push({
           ...blowpipe,
           label: `${blowpipe.label} (${dart.name.replace(' dart', '')})`,
-          value: blowpipeDartKey(blowpipe.equipment.id, dart.id),
+          value: `${blowpipe.value}_${dart.id}`,
           equipment: {
             ...blowpipe.equipment,
             itemVars: {
@@ -205,10 +206,11 @@ const EquipmentSelect: React.FC<IEquipmentSelectProps> = observer((props) => {
             },
           },
         });
-      });
+      }
+    }
 
     return gauntletSort(entries, store.monster.id);
-  }, [store.monster.id, customAvailableEquipmentFilter, ownedEquipmentIds, excludedEquipmentIds, excludedBlowpipeDarts, tagsById]);
+  }, [store.monster.id, customAvailableEquipmentFilter, ownedEquipmentIds, excludedEquipmentIds, plainBlowpipes, blowpipeDarts, tagsById]);
 
   // Kept stable between renders, so the search results are only worked out again when something changes
   const customSort = useCallback(

@@ -4,7 +4,7 @@ import { CustomSettings, Preferences } from '@/types/State';
 
 const custom: CustomSettings = {
   hiddenItemIds: [11212],
-  hiddenBlowpipeDarts: [{ blowpipeId: 12926, dartId: 811 }],
+  blowpipeDarts: [{ blowpipeId: 12926, dartIds: [11230] }],
   itemTags: [{ tag: 'tbow', itemId: 20997 }],
   savedSetups: [],
   hiddenPresets: ['void'],

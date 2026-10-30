@@ -28,7 +28,7 @@ export const createBackup = (prefs: Preferences, custom: CustomSettings, bank: B
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-const CUSTOM_ARRAYS: (keyof CustomSettings)[] = ['hiddenItemIds', 'hiddenBlowpipeDarts', 'itemTags', 'savedSetups', 'hiddenPresets'];
+const CUSTOM_ARRAYS: (keyof CustomSettings)[] = ['hiddenItemIds', 'blowpipeDarts', 'itemTags', 'savedSetups', 'hiddenPresets'];
 
 /**
  * Reads a backup made by {@link createBackup}, throwing an error with a readable message if it isn't one.

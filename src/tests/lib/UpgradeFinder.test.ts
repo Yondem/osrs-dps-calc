@@ -101,6 +101,24 @@ describe('findUpgrades', () => {
     expect(upgrades[0].items.map((eq) => eq.name).sort()).toEqual(['Crystal body', 'Crystal helm', 'Crystal legs']);
     expect(upgrades[0].setup.equipment.weapon?.name).toBe('Bow of Faerdhinen (c)');
   });
+
+  test('uses the picked blowpipe darts for the baseline, but still suggests better darts', () => {
+    const monster = getTestMonster('Abyssal demon');
+    const blowpipe = findEquipment('Toxic blowpipe', 'Charged');
+    const { baseline, upgrades } = findUpgrades({
+      player: getTestPlayer(monster),
+      monster,
+      ownedIds: [blowpipe.id],
+      candidateIds: ids('Adamant dart', 'Dragon dart'),
+      blowpipeDarts: [{ blowpipeId: blowpipe.id, dartIds: ids('Mithril dart') }],
+      styles: ['ranged'],
+      buffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
+    });
+
+    expect(baseline?.equipment.weapon?.itemVars?.blowpipeDartName).toBe('Mithril dart');
+    expect(upgrades[0].items.map((eq) => eq.name)).toEqual(['Dragon dart']);
+    expect(upgrades[0].setup.equipment.weapon?.itemVars?.blowpipeDartName).toBe('Dragon dart');
+  });
 });
 
 describe('combineUpgrades', () => {

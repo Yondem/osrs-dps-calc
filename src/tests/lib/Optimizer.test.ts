@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { cross } from 'd3-array';
 import { findEquipment, getTestMonster, getTestPlayer } from '@/tests/utils/TestUtils';
-import { availableEquipment, blowpipeDartKey, isSearchableEquipment } from '@/lib/Equipment';
+import { availableEquipment, isSearchableEquipment } from '@/lib/Equipment';
 import { DEFAULT_AUTO_BUFFS_CONFIG } from '@/lib/AutoBuffs';
 import { optimize, Optimizer, styleFamily } from '@/lib/Optimizer';
 import { EquipmentPiece, PlayerEquipment } from '@/types/Player';
@@ -149,22 +149,38 @@ describe('Optimizer', () => {
     expect(results.map((r) => r.equipment.weapon?.itemVars?.blowpipeDartName)).toContain('Dragon dart');
   });
 
-  test('never tries a blowpipe with a dart the user hid, but keeps its other darts', () => {
+  test('loads a blowpipe with the darts the user picked, rather than the darts in the pool', () => {
+    // Only mithril darts in the bank, as the dragon darts are loaded in the (Blazing) blowpipe
     const monster = getTestMonster('Abyssal demon');
-    const blowpipe = findEquipment('Toxic blowpipe', 'Charged');
-    const dragon = findEquipment('Dragon dart');
-    const adamant = findEquipment('Adamant dart');
+    const blowpipe = findEquipment('Blazing blowpipe', 'Charged');
+    const toxic = findEquipment('Toxic blowpipe', 'Charged');
     const results = optimize({
       player: getTestPlayer(monster),
       monster,
-      poolIds: [blowpipe.id, dragon.id, adamant.id],
-      excludedBlowpipeDarts: [blowpipeDartKey(blowpipe.id, dragon.id)],
+      poolIds: [blowpipe.id, findEquipment('Mithril dart').id],
+      blowpipeDarts: [{ blowpipeId: toxic.id, dartIds: [findEquipment('Dragon dart').id, findEquipment('Adamant dart').id] }],
+      styles: ['ranged'],
+      buffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
+      resultsPerStyle: 10,
+    });
+
+    const loaded = results.filter((r) => r.equipment.weapon?.name === 'Toxic blowpipe');
+    expect(loaded.map((r) => r.equipment.weapon?.itemVars?.blowpipeDartName)).toEqual(['Dragon dart']);
+  });
+
+  test('ignores picked darts a blowpipe cannot load', () => {
+    const monster = getTestMonster('Abyssal demon');
+    const rosewood = findEquipment('Rosewood blowpipe', 'Charged');
+    const optimizer = new Optimizer({
+      player: getTestPlayer(monster),
+      monster,
+      poolIds: [rosewood.id],
+      blowpipeDarts: [{ blowpipeId: rosewood.id, dartIds: [findEquipment('Dragon dart').id, findEquipment('Rune dart').id] }],
       styles: ['ranged'],
       buffsConfig: DEFAULT_AUTO_BUFFS_CONFIG,
     });
 
-    const loaded = results.filter((r) => r.equipment.weapon?.name === 'Toxic blowpipe');
-    expect(loaded.map((r) => r.equipment.weapon?.itemVars?.blowpipeDartName)).toEqual(['Adamant dart']);
+    expect(optimizer.weaponVariants(rosewood).map((w) => w.itemVars?.blowpipeDartName)).toEqual(['Rune dart']);
   });
 
   test("never uses novelty weapons that can't attack (greegrees)", () => {

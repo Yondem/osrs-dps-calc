@@ -88,9 +88,12 @@ export interface ItemTag {
   itemId: number;
 }
 
-export interface HiddenBlowpipeDart {
-  blowpipeId: number;
-  dartId: number;
+/**
+ * The darts a blowpipe is used with, instead of every dart it can load.
+ */
+export interface BlowpipeDarts {
+  blowpipeId: number; // the base blowpipe; its ornamental versions (e.g. Blazing) share it
+  dartIds: number[];
 }
 
 /**
@@ -98,7 +101,7 @@ export interface HiddenBlowpipeDart {
  */
 export interface CustomSettings {
   hiddenItemIds: number[]; // hidden from the equipment search
-  hiddenBlowpipeDarts: HiddenBlowpipeDart[]; // a blowpipe loaded with one dart, hidden without hiding the blowpipe
+  blowpipeDarts: BlowpipeDarts[]; // blowpipes without an entry (or with no darts) use every dart they can load
   itemTags: ItemTag[]; // search shortcuts, e.g. "tbow" -> Twisted bow
   savedSetups: SavedSetup[];
   hiddenPresets: string[]; // EquipmentPreset keys of built-in presets hidden from the Presets dropdown

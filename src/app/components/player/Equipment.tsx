@@ -9,9 +9,7 @@ import EquipmentSelect from './equipment/EquipmentSelect';
 
 const Equipment: React.FC = observer(() => {
   const store = useStore();
-  const {
-    ownedEquipmentIds, hiddenEquipmentIds, hiddenBlowpipeDartKeys, prefs,
-  } = store;
+  const { ownedEquipmentIds, hiddenEquipmentIds, prefs } = store;
 
   return (
     <div className="px-4">
@@ -23,7 +21,6 @@ const Equipment: React.FC = observer(() => {
           <EquipmentSelect
             ownedEquipmentIds={prefs.bankOwnedOnly && ownedEquipmentIds ? ownedEquipmentIds : undefined}
             excludedEquipmentIds={hiddenEquipmentIds}
-            excludedBlowpipeDarts={hiddenBlowpipeDartKeys}
           />
         </div>
         <div className="basis-32">

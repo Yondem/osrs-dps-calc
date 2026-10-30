@@ -98,9 +98,7 @@ const ResultRow: React.FC<{ result: OptimizeResult, rank: number, currentDps: nu
 
 const FindBestSetupButton: React.FC = observer(() => {
   const store = useStore();
-  const {
-    bank, ownedEquipmentIds, hiddenEquipmentIds, hiddenBlowpipeDartKeys,
-  } = store;
+  const { bank, ownedEquipmentIds, hiddenEquipmentIds } = store;
   const [isOpen, setIsOpen] = useState(false);
   const [source, setSource] = useState<'bank' | 'all'>('bank');
   const [styles, setStyles] = useState<AutoBuffStyle[]>(AUTO_BUFF_STYLES);
@@ -136,7 +134,7 @@ const FindBestSetupButton: React.FC = observer(() => {
       player: toJS(store.player),
       monster: toJS(store.monster),
       poolIds,
-      excludedBlowpipeDarts: [...hiddenBlowpipeDartKeys],
+      blowpipeDarts: toJS(store.custom.blowpipeDarts),
       styles,
       buffsConfig: useAutoBuffs ? toJS(store.prefs.autoBuffsConfig) : null,
       resultsPerStyle: 5,

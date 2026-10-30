@@ -76,7 +76,7 @@ const BackupSection: React.FC = observer(() => {
     <div>
       <p>
         The desktop app, the website and each browser keep their own settings. Export them here and import them in the
-        other one to bring over your saved setups, auto buffs, tags, filtered items, graphs and bank.
+        other one to bring over your saved setups, auto buffs, tags, filtered items, ammo, graphs and bank.
       </p>
 
       <h3 className="font-bold mt-4 mb-1">Export</h3>
@@ -125,7 +125,7 @@ const BackupSection: React.FC = observer(() => {
             {[
               plural(pending.custom.savedSetups?.length ?? 0, 'saved setup'),
               plural(pending.custom.itemTags?.length ?? 0, 'tag'),
-              plural((pending.custom.hiddenItemIds?.length ?? 0) + (pending.custom.hiddenBlowpipeDarts?.length ?? 0), 'filtered item'),
+              plural(pending.custom.hiddenItemIds?.length ?? 0, 'filtered item'),
             ].join(', ')}
             {pending.bank ? ` and a bank of ${plural(pending.bank.items.length, 'item')}` : ''}
             .

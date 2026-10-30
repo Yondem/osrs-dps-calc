@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import {
   IconArrowsExchange, IconBuildingBank, IconChartBar, IconDeviceFloppy, IconEyeOff, IconFlask, IconList, IconSettings, IconTag,
+  IconTargetArrow,
 } from '@tabler/icons-react';
 import { useStore } from '@/state';
 import Modal from '@/app/components/generic/Modal';
@@ -10,6 +11,7 @@ import PresetsSection from '@/app/components/settings/PresetsSection';
 import TagsSection from '@/app/components/settings/TagsSection';
 import FilteredItemsSection from '@/app/components/settings/FilteredItemsSection';
 import BankSection from '@/app/components/settings/BankSection';
+import AmmoSection from '@/app/components/settings/AmmoSection';
 import AutoBuffsSection from '@/app/components/settings/AutoBuffsSection';
 import GraphsSection from '@/app/components/settings/GraphsSection';
 import BackupSection from '@/app/components/settings/BackupSection';
@@ -32,6 +34,9 @@ const SECTIONS = [
   },
   {
     key: 'filtered', label: 'Filtered items', Icon: IconEyeOff, Component: FilteredItemsSection,
+  },
+  {
+    key: 'ammo', label: 'Ammo', Icon: IconTargetArrow, Component: AmmoSection,
   },
   {
     key: 'bank', label: 'Bank', Icon: IconBuildingBank, Component: BankSection,

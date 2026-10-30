@@ -1,7 +1,7 @@
 import PlayerVsNPCCalc from '@/lib/PlayerVsNPCCalc';
 import {
-  AmmoApplicability, ammoApplicability, availableEquipment, blowpipeDartKey, calculateEquipmentBonusesFromGear, canBlowpipeUseDart,
-  CORRUPTED_GAUNTLET_EQUIPMENT_IDS, DARTS, GAUNTLET_EQUIPMENT_IDS, getCanonicalItemId,
+  AmmoApplicability, ammoApplicability, availableEquipment, calculateEquipmentBonusesFromGear, chosenBlowpipeDarts,
+  CORRUPTED_GAUNTLET_EQUIPMENT_IDS, GAUNTLET_EQUIPMENT_IDS, getCanonicalItemId, loadableDarts,
 } from '@/lib/Equipment';
 import { BLOWPIPE_IDS, CORRUPTED_GAUNTLET_MONSTER_IDS, GAUNTLET_MONSTER_IDS } from '@/lib/constants';
 import {
@@ -12,6 +12,7 @@ import { addPrayer, Prayer } from '@/enums/Prayer';
 import Potion from '@/enums/Potion';
 import { EquipmentPiece, Player, PlayerEquipment } from '@/types/Player';
 import { Monster } from '@/types/Monster';
+import type { BlowpipeDarts } from '@/types/State';
 import { PlayerCombatStyle } from '@/types/PlayerCombatStyle';
 import { Spell, spellByName } from '@/types/Spell';
 import { calculatePotionBoosts, getCombatStylesForCategory, isDefined } from '@/utils';
@@ -31,7 +32,7 @@ export interface OptimizeOptions {
   monster: Monster;
   poolIds: number[]; // equipment the search may use
   pool?: EquipmentPiece[]; // an already resolved pool (see resolvePool), used instead of poolIds
-  excludedBlowpipeDarts?: string[]; // blowpipe and dart combinations (see blowpipeDartKey) that are never tried
+  blowpipeDarts?: BlowpipeDarts[]; // the darts the user picked for their blowpipes
   styles: AutoBuffStyle[]; // combat styles to search
   buffsConfig: AutoBuffsConfig | null; // prayers and potions per style, or null to keep the loadout's own
   resultsPerStyle?: number;
@@ -367,16 +368,15 @@ export class Optimizer {
   }
 
   /**
-   * A blowpipe once per dart in the pool it can load, or any other weapon as it is. Darts loaded into a blowpipe
-   * don't show up in a bank export, so with none in the pool every dart it can load is tried. Hidden combinations
-   * are never tried.
+   * A blowpipe once per dart, or any other weapon as it is. A blowpipe uses the darts the user picked for it if
+   * they did, or else the darts in the pool it can load. Darts loaded into a blowpipe don't show up in a bank export,
+   * so with none in the pool every dart it can load is tried.
    */
   public weaponVariants(w: EquipmentPiece): EquipmentPiece[] {
     if (!BLOWPIPE_IDS.includes(w.id)) return [w];
-    const loadable = DARTS.filter((d) => canBlowpipeUseDart(w.name, d.name)
-      && !this.opts.excludedBlowpipeDarts?.includes(blowpipeDartKey(w.id, d.id)));
+    const loadable = loadableDarts(w);
     const inPool = loadable.filter((d) => this.pool.some((eq) => eq.id === d.id));
-    return (inPool.length > 0 ? inPool : loadable)
+    return (chosenBlowpipeDarts(this.opts.blowpipeDarts, w) ?? (inPool.length > 0 ? inPool : loadable))
       .map((d) => ({ ...w, itemVars: { ...w.itemVars, blowpipeDartName: d.name, blowpipeDartId: d.id } }));
   }
 
