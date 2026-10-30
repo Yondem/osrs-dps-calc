@@ -897,6 +897,13 @@ class GlobalState implements State {
   }
 
   /**
+   * Replaces the selected loadout's Venator bow bounce targets (updatePlayer would merge the lists instead).
+   */
+  setBounceTargets(targets: Monster[]) {
+    this.loadouts[this.selectedLoadout].buffs.bounceTargets = targets;
+  }
+
+  /**
    * Update the monster state.
    * @param monster
    */

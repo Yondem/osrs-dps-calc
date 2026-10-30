@@ -1432,6 +1432,11 @@ export default class PlayerVsNPCCalc extends BaseCalc {
 
     const npcDist = attackerDist.transform(this.applyNpcTransforms(styleType));
 
+    // With only one other monster to bounce to, a Venator bow's second bounce comes back to this one
+    if (this.getBounceTargets().length === 1) {
+      npcDist.addDist(this.bounceHitDist(this.monster));
+    }
+
     if (process.env.NEXT_PUBLIC_HIT_DIST_SANITY_CHECK) {
       npcDist.dists.forEach((hitDist, ix) => {
         const sumAccuracy = sum(hitDist.hits, (wh) => wh.probability);
@@ -2232,6 +2237,44 @@ export default class PlayerVsNPCCalc extends BaseCalc {
       return 0;
     }
     return THRALL_MAX_HITS[thrall];
+  }
+
+  /**
+   * The other monsters a charged Venator bow's arrows bounce to (none for other weapons).
+   */
+  public getBounceTargets(): Monster[] {
+    if (this.opts.usingSpecialAttack || !this.wearing('Venator bow') || this.player.equipment.weapon?.version !== 'Charged') {
+      return [];
+    }
+    return (this.player.buffs.bounceTargets ?? []).slice(0, 2);
+  }
+
+  /**
+   * A Venator bow bounce on a monster: it rolls its own accuracy against that monster, and hits for up to two-thirds of
+   * the original max hit, rounded down. Bounces don't get a minimum hit from negative flat armour.
+   */
+  private bounceHitDist(target: Monster): HitDistribution {
+    const accuracy = target === this.monster
+      ? this.getHitChance()
+      : new PlayerVsNPCCalc(
+        { ...this.player, buffs: { ...this.player.buffs, bounceTargets: [] } },
+        target,
+        { loadoutName: `${this.opts.loadoutName}/bounce`, disableMonsterScaling: this.opts.disableMonsterScaling },
+      ).getHitChance();
+    return HitDistribution.linear(accuracy, 0, Math.trunc((this.getMinAndMax()[1] * 2) / 3));
+  }
+
+  /**
+   * Damage per second to every monster a Venator bow hits, or undefined without bounce targets.
+   */
+  public getTotalDps(): number | undefined {
+    const targets = this.getBounceTargets();
+    if (targets.length === 0) {
+      return undefined;
+    }
+    // Damage to this monster, including a bounce back to it, is in the DPS already
+    const otherDamage = sum(targets, (t) => this.bounceHitDist(t).expectedHit());
+    return this.getDps() + otherDamage / this.getExpectedAttackSpeed() / SECONDS_PER_TICK;
   }
 
   public getThrallDps(): number {

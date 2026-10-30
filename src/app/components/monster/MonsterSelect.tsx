@@ -14,17 +14,24 @@ interface MonsterOption {
   monster: Partial<Monster>;
 }
 
-const MonsterSelect: React.FC = observer(() => {
+interface IMonsterSelectProps {
+  id?: string;
+  placeholder?: string;
+  /** Picks a monster for something other than the main target, without the custom monster option. */
+  onSelect?: (monster: Monster) => void;
+}
+
+const MonsterSelect: React.FC<IMonsterSelectProps> = observer(({ id = 'monster-select', placeholder = 'Search for monster...', onSelect }) => {
   const store = useStore();
   const { availableMonsters } = store;
 
   const options: MonsterOption[] = useMemo(() => [
-    {
+    ...(onSelect ? [] : [{
       label: 'Create custom monster',
       value: -1,
       version: '',
       monster: { ...CUSTOM_MONSTER_BASE },
-    },
+    }]),
     ...availableMonsters.map((m, i) => ({
       label: `${m.name}`,
       value: i,
@@ -33,14 +40,14 @@ const MonsterSelect: React.FC = observer(() => {
         ...m,
       },
     })),
-  ], [availableMonsters]);
+  ], [availableMonsters, onSelect]);
 
   return (
     <Combobox<MonsterOption>
-      id="monster-select"
+      id={id}
       className="w-full"
       items={options}
-      placeholder="Search for monster..."
+      placeholder={placeholder}
       resetAfterSelect
       blurAfterSelect
       customFilter={(items, iv) => {
@@ -49,7 +56,9 @@ const MonsterSelect: React.FC = observer(() => {
         return items.filter((i) => i.value !== -1);
       }}
       onSelectedItemChange={(item) => {
-        if (item) {
+        if (item && onSelect) {
+          onSelect(item.monster as Monster);
+        } else if (item) {
           store.updateMonster(item.monster);
         }
       }}

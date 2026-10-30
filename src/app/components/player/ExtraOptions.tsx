@@ -10,14 +10,35 @@ import ba_attacker from '@/public/img/misc/ba_attacker.webp';
 import chinchompa from '@/public/img/misc/chinchompa.png';
 import thrall from '@/public/img/misc/resurrect_greater_ghost.png';
 import NumberInput from '@/app/components/generic/NumberInput';
+import MonsterSelect from '@/app/components/monster/MonsterSelect';
+import { IconX } from '@tabler/icons-react';
+import { toJS } from 'mobx';
 import { Thrall } from '@/types/Player';
+import { Monster } from '@/types/Monster';
+import { INITIAL_MONSTER_INPUTS } from '@/lib/Monsters';
+import { getCdnImage } from '@/utils';
 import Toggle from '../generic/Toggle';
 
 const THRALL_OPTIONS: [Thrall | null, string][] = [[null, 'Off'], ['lesser', 'Lesser'], ['superior', 'Superior'], ['greater', 'Greater']];
 
+const VENATOR_BOWS = ['Venator bow', 'Echo venator bow'];
+
 const ExtraOptions: React.FC = observer(() => {
   const store = useStore();
   const { player } = store;
+  const { weapon } = player.equipment;
+  const bounceTargets = player.buffs.bounceTargets ?? [];
+
+  // A bounce target shares the main monster's raid scaling, but not its defence reductions or current HP
+  const addBounceTarget = (m: Monster) => store.setBounceTargets([...bounceTargets, {
+    ...m,
+    inputs: {
+      ...store.monster.inputs,
+      phase: m.id === store.monster.id ? store.monster.inputs.phase : undefined,
+      monsterCurrentHp: m.skills.hp,
+      defenceReductions: INITIAL_MONSTER_INPUTS.defenceReductions,
+    },
+  }]);
 
   return (
     <div className="px-6 my-4">
@@ -190,6 +211,46 @@ const ExtraOptions: React.FC = observer(() => {
             })}
           </div>
         </div>
+        {weapon && VENATOR_BOWS.includes(weapon.name) && weapon.version === 'Charged' && (
+          <div className="w-full mt-2 text-sm">
+            <span className="select-none">
+              {weapon.image && <img src={getCdnImage(`equipment/${weapon.image}`)} width={18} className="inline-block" alt="" />}
+              {' '}
+              Bounce targets
+            </span>
+            {bounceTargets.map((m, i) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <div key={i} className="mt-1 flex items-center gap-1">
+                <span className="grow min-w-0 truncate">
+                  {m.name}
+                  {m.version && <span className="text-xs text-gray-400 dark:text-gray-300">{` #${m.version}`}</span>}
+                </span>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-red transition-colors"
+                  onClick={() => store.setBounceTargets(bounceTargets.filter((_, j) => j !== i))}
+                  aria-label={`Remove ${m.name}`}
+                >
+                  <IconX size={16} />
+                </button>
+              </div>
+            ))}
+            {bounceTargets.length < 2 && (
+              <div className="mt-1 flex items-center gap-1">
+                <div className="grow min-w-0">
+                  <MonsterSelect id="bounce-target-select" placeholder="Add a monster..." onSelect={addBounceTarget} />
+                </div>
+                <button
+                  type="button"
+                  className="form-control px-2 py-1 whitespace-nowrap"
+                  onClick={() => addBounceTarget(toJS(store.monster))}
+                >
+                  Current monster
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
 

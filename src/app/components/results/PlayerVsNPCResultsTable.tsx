@@ -26,6 +26,7 @@ const calcKeyToString = (value: number, calcKey: keyof PlayerVsNPCCalculatedLoad
     case 'specAccuracy':
       return `${(value * 100).toFixed(ACCURACY_PRECISION)}%`;
     case 'dps':
+    case 'totalDps':
     case 'specMomentDps':
       return value.toFixed(DPS_PRECISION);
     case 'specFullDps':
@@ -145,6 +146,11 @@ const PlayerVsNPCResultsTable: React.FC = observer(() => {
         <ResultRow calcKey="dps" title="The average damage you will deal per-second" hasResults={hasResults}>
           DPS
         </ResultRow>
+        {some(loadouts, (l) => isDefined(l.totalDps)) && (
+          <ResultRow calcKey="totalDps" title="Your damage per second to every monster your Venator bow hits" hasResults={hasResults}>
+            Total DPS
+          </ResultRow>
+        )}
         <ResultRow calcKey="ttk" title="The average time (in seconds) it will take to defeat the monster" hasResults={hasResults}>
           Avg. TTK
         </ResultRow>

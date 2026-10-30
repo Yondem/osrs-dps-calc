@@ -136,6 +136,7 @@ export interface PlayerVsNPCCalculatedLoadout extends CalculatedLoadout {
   specMomentDps?: number,
   specFullDps?: number,
   specPerEnergy?: number, // expected damage per 1% special attack energy
+  totalDps?: number, // to every monster a Venator bow bounces to
   specHitDist?: ChartEntry[],
 }
 

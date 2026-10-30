@@ -3,6 +3,7 @@ import { Prayer } from '@/enums/Prayer';
 import Potion from '@/enums/Potion';
 import { Spell } from '@/types/Spell';
 import { PlayerCombatStyle } from '@/types/PlayerCombatStyle';
+import type { Monster } from '@/types/Monster';
 
 export interface PlayerSkills {
   atk: number;
@@ -155,6 +156,12 @@ export interface Player extends EquipmentStats {
      * @see https://oldschool.runescape.wiki/w/Thralls
      */
     thrall?: Thrall | null;
+    /**
+     * Up to two other monsters a charged Venator bow's arrows bounce to. With one, the second bounce comes back to the
+     * main target.
+     * @see https://oldschool.runescape.wiki/w/Venator_bow
+     */
+    bounceTargets?: Monster[];
   };
   spell: Spell | null;
 }
