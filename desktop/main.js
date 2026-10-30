@@ -1,5 +1,4 @@
-// Electron entry point: serves the static Next.js export over http://localhost so the
-// RuneLite WikiSync plugin (which only accepts the "localhost" origin) can connect.
+// Electron entry point: serves the static Next.js export over http://localhost.
 const {
   app, BrowserWindow, Menu, dialog, shell,
 } = require('electron');
@@ -8,7 +7,6 @@ const http = require('node:http');
 const path = require('node:path');
 
 // Fixed port: saved loadouts live in IndexedDB, which is keyed by origin (including port).
-// Kept outside WikiSync's 37767-37776 range.
 const PORT = 37780;
 const BASE_PATH = '/osrs-dps';
 const APP_URL = `http://localhost:${PORT}${BASE_PATH}`;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { observer } from 'mobx-react-lite';
 import {
   IconArrowsExchange, IconBuildingBank, IconChartBar, IconDeviceFloppy, IconEyeOff, IconFlask, IconList, IconSettings, IconTag,
@@ -48,8 +48,7 @@ const SECTIONS = [
 
 const SettingsModal: React.FC = observer(() => {
   const store = useStore();
-  const [sectionKey, setSectionKey] = useState(SECTIONS[0].key);
-  const section = SECTIONS.find((s) => s.key === sectionKey) ?? SECTIONS[0];
+  const section = SECTIONS.find((s) => s.key === store.ui.settingsSection) ?? SECTIONS[0];
 
   return (
     <Modal
@@ -72,7 +71,7 @@ const SettingsModal: React.FC = observer(() => {
               className={`flex items-center gap-2 px-3 py-2 rounded text-left whitespace-nowrap transition-colors ${key === section.key
                 ? 'bg-btns-300 dark:bg-dark-500 text-white font-bold'
                 : 'hover:bg-body-200 dark:hover:bg-dark-400'}`}
-              onClick={() => setSectionKey(key)}
+              onClick={() => store.updateUIState({ settingsSection: key })}
             >
               <Icon size={18} />
               {label}

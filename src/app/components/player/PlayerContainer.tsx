@@ -5,9 +5,9 @@ import { calculateCombatLevel } from '@/utils';
 import PlayerInnerContainer, { PlayerTabName } from '@/app/components/player/PlayerInnerContainer';
 import LoadoutName from '@/app/components/player/LoadoutName';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
-import WikiSyncButton from 'src/app/components/player/WikiSyncButton';
 import FindBestSetupButton from '@/app/components/player/FindBestSetupButton';
 import UpgradeFinderButton from '@/app/components/player/UpgradeFinderButton';
+import BankButton from '@/app/components/player/BankButton';
 
 const PlayerContainer: React.FC = observer(() => {
   const store = useStore();
@@ -82,7 +82,7 @@ const PlayerContainer: React.FC = observer(() => {
           <div className="flex gap-1">
             <FindBestSetupButton />
             <UpgradeFinderButton />
-            <WikiSyncButton />
+            <BankButton />
             <button
               type="button"
               onClick={() => deleteLoadout(selectedLoadout)}

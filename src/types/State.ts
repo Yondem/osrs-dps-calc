@@ -22,6 +22,7 @@ export interface UI {
   showPreferencesModal: boolean;
   showShareModal: boolean;
   showSettingsModal: boolean;
+  settingsSection: string;
   username: string;
   isDefensiveReductionsExpanded: boolean;
 }

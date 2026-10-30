@@ -224,6 +224,7 @@ class GlobalState implements State {
     showPreferencesModal: false,
     showShareModal: false,
     showSettingsModal: false,
+    settingsSection: 'setups',
     username: '',
     isDefensiveReductionsExpanded: false,
   };
