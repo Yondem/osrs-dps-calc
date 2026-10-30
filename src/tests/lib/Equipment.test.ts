@@ -159,4 +159,23 @@ describe('isSearchableEquipment', () => {
       expect([name, isSearchableEquipment(findEquipment(name, version))]).toEqual([name, true]);
     }
   });
+
+  test('hides Leagues and Grid Master items', () => {
+    for (const [name, version] of [
+      ['Drygore blowpipe', 'Charged'], ["King's barrage", ''], ["Devil's element", ''], ['Crystal blessing', ''],
+      ['Crystal dagger (perfected)', ''], ["V's helm", ''], ['Lithic sceptre', 'Charged'], ['Gloves of the Damned', ''],
+      ['Echo pickaxe', ''],
+    ]) {
+      expect([name, isSearchableEquipment(findEquipment(name, version))]).toEqual([name, false]);
+    }
+  });
+
+  test('keeps ornament kits and real items named after echoes', () => {
+    for (const [name, version] of [
+      ['Echo venator bow', 'Charged'], ['Echo virtus robe top', ''], ["Echo ahrim's hood", 'Undamaged'], ['Echo boots', ''],
+      ['Trident of the Swamp (o)', 'Charged'], ['Toxic blowpipe', 'Charged'],
+    ]) {
+      expect([name, isSearchableEquipment(findEquipment(name, version))]).toEqual([name, true]);
+    }
+  });
 });

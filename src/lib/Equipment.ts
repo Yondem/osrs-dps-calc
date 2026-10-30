@@ -43,8 +43,21 @@ export const noStatExceptions = [
 ];
 
 /**
+ * Items that only exist in Leagues (echo boss drops and relic rewards) or the Grid Master event. Matched by exact name,
+ * so ornament kits of real items (Echo venator bow, Echo virtus, ...) stay.
+ */
+const LEAGUES_ONLY_NAMES = new Set([
+  // Raging Echoes and Demonic Pacts
+  'Drygore blowpipe', "Devil's element", 'Crystal blessing', 'Crystal dagger (perfected)', 'Infernal tecpatl',
+  "Nature's recurve", "V's helm", 'Fang of the hound', "King's barrage", 'Shadowflame quadrant', 'Lithic sceptre',
+  "Sage's axe", 'Searing boots', "Banker's briefcase", 'Amulet of the monarchs', 'Emperor ring',
+  // Grid Master
+  'Gloves of the Damned', 'Echo axe', 'Echo pickaxe', 'Echo harpoon',
+]);
+
+/**
  * Whether an item is offered in the equipment search. Hides items with no stats (unless they have an effect),
- * and broken, inactive, locked, LMS and other duplicate versions.
+ * broken, inactive, locked, LMS and other duplicate versions, and Leagues-only items.
  */
 export const isSearchableEquipment = (eq: EquipmentPiece): boolean => !((
   (Object.values(eq.bonuses).every((val) => val === 0))
@@ -59,7 +72,8 @@ export const isSearchableEquipment = (eq: EquipmentPiece): boolean => !((
   || eq.name.match(/^Crystal .* \(i\)$/)
   // Emir's Arena gear that only exists inside a match, and the arena's scrapped ornamented rewards
   || eq.name.match(/^((Elite |Superior )?Calamity (chest|breeches)|Maoma's|Koriff's|Saika's|Wristbands of the Arena)|\(wrapped\)$/i)
-  || eq.name.match(/^(Dragon claws|Bandos tassets|Bandos boots) \(or\)$/));
+  || eq.name.match(/^(Dragon claws|Bandos tassets|Bandos boots) \(or\)$/)
+  || LEAGUES_ONLY_NAMES.has(eq.name));
 
 /**
  * Items only obtainable through PvP (Bounty Hunter rewards, revenant/Ancient Warriors' gear, Deadman Mode copies).
