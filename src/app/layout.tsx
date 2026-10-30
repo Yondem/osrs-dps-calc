@@ -19,16 +19,18 @@ export const metadata: Metadata = {
 
 /**
  * Allowlist of what self-hosted builds may load, so the page can't contact anything else even if a dependency tried to.
- * Other sites: player lookups (oldschool.runescape.wiki) and opening old wiki share links (tools.runescape.wiki).
+ * Other sites: player lookups (oldschool.runescape.wiki), opening old wiki share links (tools.runescape.wiki) and the
+ * GoatCounter visit counter (gc.zgo.at serves its script, which reports to yondem.goatcounter.com).
  * Next.js inlines its startup scripts, so those need 'unsafe-inline'.
  */
+const GOATCOUNTER_URL = 'https://yondem.goatcounter.com';
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' https://gc.zgo.at",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob: ${GOATCOUNTER_URL}`,
   "font-src 'self'",
-  "connect-src 'self' https://oldschool.runescape.wiki https://tools.runescape.wiki",
+  `connect-src 'self' https://oldschool.runescape.wiki https://tools.runescape.wiki ${GOATCOUNTER_URL}`,
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
@@ -46,6 +48,8 @@ const RootLayout: React.FC<PropsWithChildren> = (props) => {
         <head>
           <meta httpEquiv="Content-Security-Policy" content={CONTENT_SECURITY_POLICY} />
           <meta name="referrer" content="strict-origin-when-cross-origin" />
+          {/* Counts visits to the website, without cookies */}
+          <script data-goatcounter={`${GOATCOUNTER_URL}/count`} async src="https://gc.zgo.at/count.js" />
         </head>
       )}
       <body>
