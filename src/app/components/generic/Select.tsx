@@ -3,7 +3,9 @@ import {
   useSelect,
   UseSelectGetToggleButtonPropsOptions,
 } from 'downshift';
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useEffect, useLayoutEffect, useRef, useState,
+} from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 
@@ -85,11 +87,6 @@ const Select = <T extends SelectItem>(props: ISelectProps<T>) => {
           } else {
             menuRef.current?.classList.remove('bottom-[100%]');
           }
-
-          // If it would overflow the right edge of the viewport, align the right edges of the select and dropdown elements instead of the left edges
-          if (pos.right > window.innerWidth) {
-            menuRef.current?.classList.add('right-0');
-          }
         }
       }
     },
@@ -114,6 +111,35 @@ const Select = <T extends SelectItem>(props: ISelectProps<T>) => {
       selectItem(value);
     }
   }, [selectItem, value]);
+
+  // Once the list has rendered, shift the menu sideways so it stays inside the viewport and any scrolling parent
+  // (e.g. a modal body), which would otherwise clip it on narrow screens
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    menu.style.left = '';
+    menu.style.maxWidth = '';
+    if (!isOpen || !items.length) return;
+
+    const margin = 8;
+    let minX = margin;
+    let maxX = window.innerWidth - margin;
+    for (let el = menu.parentElement; el; el = el.parentElement) {
+      const { overflowX } = getComputedStyle(el);
+      if (overflowX !== 'visible') {
+        const r = el.getBoundingClientRect();
+        minX = Math.max(minX, r.left);
+        maxX = Math.min(maxX, r.right);
+      }
+    }
+
+    menu.style.maxWidth = `${maxX - minX}px`;
+    const pos = menu.getBoundingClientRect();
+    let shift = 0;
+    if (pos.right > maxX) shift = maxX - pos.right;
+    if (pos.left + shift < minX) shift = minX - pos.left;
+    if (shift) menu.style.left = `${shift}px`;
+  }, [isOpen, items.length]);
 
   return (
     <div className="relative">
@@ -140,7 +166,10 @@ const Select = <T extends SelectItem>(props: ISelectProps<T>) => {
         })}
       >
         {!isOpen || !items.length ? null : (
-          <div style={{ height: listHeight, maxHeight: '200px', width: 300 }}>
+          <div style={{
+            height: listHeight, maxHeight: '200px', width: 300, maxWidth: '100%',
+          }}
+          >
             <Virtuoso
               ref={virtuosoRef}
               totalListHeightChanged={setListHeight}
